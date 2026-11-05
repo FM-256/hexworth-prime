@@ -110,7 +110,9 @@
     function studentReport(g) {
         var phases = {};
         Object.keys(g.phases).forEach(function (k) { phases[k] = { score: r2(g.phases[k].score || 0), max: g.phases[k].max }; });
-        return { total: g.display, outOf: 100, phases: phases, objectives: objectiveTotals(g) };
+        /* objectives are NOT in the student's view: three of them are a single check each, so their
+         * totals would be per-check marks (Mallory R5 L2). Staff get them in the gradebook entry. */
+        return { total: g.display, outOf: 100, phases: phases };
     }
 
     /* One CSV line per sitting for the instructor: id, total, every row's score, applied penalties. */

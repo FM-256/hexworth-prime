@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Final Exam Results: Meridian Workstation Build | MD-100 CTS1156C</title>
+<!-- STAFF PAGE. The server decides who sees what: mdfinalResults returns a class only to an admin or
+     to that class's handler (spec R7, 13.1), and restart, provision, sweep and window control are
+     admin only on the server whatever this page shows. Hiding a button here is convenience, never
+     the gate. Every value is rendered as text. -->
+<script src="../../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<script src="../../../../components/FirebaseAuth.js"></script>
+<style>
+  :root { --bg: #0b0d12; --card: #1b2333; --card2: #222c3f; --ink: #e5e7eb; --muted: #94a3b8; --accent: #3b82f6; --ok: #22c55e; --warn: #f59e0b; --bad: #ef4444; --border: rgba(255, 255, 255, 0.1); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); padding: 16px; }
+  h1 { font-size: 1.15rem; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 14px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+  .card h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px; }
+  select, input, button { font: inherit; font-size: 0.85rem; }
+  select, input { background: #0f1522; color: var(--ink); border: 1px solid var(--border); border-radius: 5px; padding: 5px 7px; }
+  .btn { background: var(--card2); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 5px 11px; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.danger { border-color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { text-align: left; color: var(--muted); font-weight: 600; padding: 5px 6px; border-bottom: 1px solid var(--border); }
+  td { padding: 5px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr.pick { cursor: pointer; }
+  tr.pick:hover td { background: rgba(59, 130, 246, 0.08); }
+  .flag { color: var(--warn); }
+  .pass { color: var(--ok); }
+  .fail { color: var(--bad); }
+  .muted { color: var(--muted); }
+  .msg { font-size: 0.85rem; margin-bottom: 10px; }
+  .bad { color: var(--bad); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; align-items: end; }
+  label.field { display: grid; gap: 3px; font-size: 0.75rem; color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<h1>Final exam results: Meridian Workstation Build</h1>
+<p class="sub">MD-100 / CTS1156C. The CSV is the grade of record while the class gradebook copy is not authoritative.</p>
+<p class="msg" id="msg" hidden></p>
+
+<div class="bar">
+  <label class="field">Exam
+    <select id="examPick"><option value="md100-final-2026">Final (md100-final-2026)</option><option value="md100-final-rehearsal">Rehearsal</option></select>
+  </label>
+  <label class="field">Class <select id="classPick"><option value="">Choose a class</option></select></label>
+  <label class="field">or class id <input id="classId" maxlength="128" placeholder="when it is not in the list"></label>
+  <button class="btn" id="btnClassId">Open</button>
+  <button class="btn" id="btnAll" hidden>All sittings (admin)</button>
+  <button class="btn" id="btnRefresh">Refresh</button>
+  <button class="btn" id="btnSweep" hidden>Sweep expired sittings</button>
+  <button class="btn" id="btnCsv" hidden>Download CSV</button>
+</div>
+
+<div class="card" id="controlCard" hidden>
+  <h2>Window control (admin)</h2>
+  <div class="grid">
+    <label class="field">Armed <select id="armSel"><option value="">(unchanged)</option><option value="true">Arm</option><option value="false">Disarm</option></select></label>
+    <label class="field">Allowlist add (uid) <input id="allowAdd" maxlength="128"></label>
+    <label class="field">Allowlist remove (uid) <input id="allowRemove" maxlength="128"></label>
+    <button class="btn" id="btnControl">Apply</button>
+  </div>
+  <p class="muted" id="controlState"></p>
+</div>
+
+<div class="card"><h2 id="rosterTitle">Sittings</h2><table id="roster"></table></div>
+<div class="card" id="detailCard" hidden><h2 id="detailTitle">Sitting</h2><div id="detail"></div></div>
+
+<script>
+/* Renders what mdfinalResults returns and posts the staff actions. No grading here. */
+(function () {
+  'use strict';
+  var data = null, current = null, isAdminView = false;
+  var FAULT_CODES = ['vm_unreachable', 'provision_failed', 'engine_error', 'outage'];
+
+  function el(id) { return document.getElementById(id); }
+  function node(tag, cls, text) { var n = document.createElement(tag); if (cls) { n.className = cls; } if (text !== undefined && text !== null) { n.textContent = String(text); } return n; }
+  function examId() { return el('examPick').value; }
+  function say(text, bad) { var m = el('msg'); m.hidden = !text; m.textContent = text || ''; m.className = 'msg' + (bad ? ' bad' : ''); }
+  function when(ms) { return ms ? new Date(Number(ms)).toLocaleString() : ''; }
+  function call(name, payload) {
+    if (typeof FirebaseAuth === 'undefined' || typeof FirebaseAuth.callFunction !== 'function') { return Promise.reject(new Error('Cloud Functions are unavailable.')); }
+    return FirebaseAuth.callFunction(name, Object.assign({ examId: examId() }, payload || {})).then(function (r) { return (r && r.data) ? r.data : r; });
+  }
+
+  /* The status of one sitting, in words. */
+  function status(s) {
+    var x = s.sitting;
+    if (!x) { return 'not started'; }
+    if (x.submittedAt) { return x.autoSubmitted ? 'submitted (auto)' : 'submitted'; }
+    /* past its clock and not yet swept: the 21:05 sweep is for exactly these (Nancy R5) */
+    if (!(x.remainingMs > 0)) { return 'expired, not swept'; }
+    var left = Math.ceil(x.remainingMs / 60000) + ' min left';
+    return (x.handedOverAt ? 'handed over, ' : 'in progress, ') + left;
+  }
+
+  /* The roster table: one row per student. */
+  function renderRoster() {
+    var t = el('roster');
+    t.textContent = '';
+    var head = node('tr');
+    ['Student', 'Email', 'Status', 'Total', 'Result', 'Attempts', 'Resets', 'Provisioned', 'Flags'].forEach(function (h) { head.appendChild(node('th', null, h)); });
+    t.appendChild(head);
+    (data.students || []).forEach(function (s, i) {
+      var x = s.sitting, e = x && x.entry, tr = node('tr', 'pick');
+      tr.appendChild(node('td', null, s.name));
+      tr.appendChild(node('td', 'muted', s.email || ''));
+      tr.appendChild(node('td', null, status(s)));
+      tr.appendChild(node('td', null, e ? e.score : ''));
+      tr.appendChild(node('td', e ? (e.passed ? 'pass' : 'fail') : null, e ? (e.passed ? 'pass' : 'not passed') : ''));
+      tr.appendChild(node('td', null, String((s.attempts || 0) + (x ? 1 : 0))));
+      tr.appendChild(node('td', null, x ? ('self ' + x.selfResets + ', admin ' + x.adminResets) : ''));
+      tr.appendChild(node('td', null, x && x.provisionedAt ? 'yes' : ''));
+      tr.appendChild(node('td', 'flag', (s.flags || []).join('; ')));
+      tr.onclick = function () { renderDetail(i); };
+      t.appendChild(tr);
+    });
+    el('btnCsv').hidden = !data.csv;
+  }
+
+  /* One student's full report (staff only) and the staff actions for that sitting. */
+  function renderDetail(i) {
+    var s = data.students[i], x = s.sitting, d = el('detail');
+    current = s;
+    el('detailCard').hidden = false;
+    el('detailTitle').textContent = s.name + ' (' + s.uid + ')';
+    d.textContent = '';
+    if (!x) { d.appendChild(node('p', 'muted', 'No sitting.')); }
+    else {
+      d.appendChild(node('p', null, 'Started ' + when(x.startedAt) + '; expires ' + when(x.expiresAt) + (x.handedOverAt ? '; handed over ' + when(x.handedOverAt) : '') + (x.submittedAt ? '; submitted ' + when(x.submittedAt) : '')));
+      var r = x.report;
+      if (r) {
+        d.appendChild(node('p', null, 'Total ' + r.display + ' / 100' + (r.p7Reason ? '  (P7: ' + r.p7Reason + ')' : '') + (r.provisioned ? '  (provisioned)' : '')));
+        var t = node('table'), head = node('tr');
+        ['Row', 'Phase', 'Score', 'Max', 'Parts'].forEach(function (h) { head.appendChild(node('th', null, h)); });
+        t.appendChild(head);
+        (r.rows || []).forEach(function (row) {
+          var tr = node('tr');
+          [row.id, row.phase, Math.round(row.score * 100) / 100, row.max, (row.parts || []).map(function (p) { return Math.round(p * 100) / 100; }).join(' + ')].forEach(function (v) { tr.appendChild(node('td', null, v)); });
+          t.appendChild(tr);
+        });
+        d.appendChild(t);
+        var pens = (r.penalties || []).filter(function (p) { return p.applied; });
+        d.appendChild(node('p', 'muted', 'Penalties: ' + (pens.length ? pens.map(function (p) { return p.id + ' (-' + p.points + (p.carried ? ', carried' : '') + ')'; }).join(', ') : 'none')));
+      }
+    }
+    if (isAdminView) { d.appendChild(adminActions(s)); }
+  }
+
+  /* Admin restart and provision for one sitting (the server refuses what policy does not allow). */
+  function adminActions(s) {
+    var box = node('div', 'grid');
+    var reason = node('select'); FAULT_CODES.forEach(function (c) { var o = node('option', null, c); o.value = c; reason.appendChild(o); });
+    var evidence = node('input'); evidence.maxLength = 500; evidence.placeholder = 'Evidence reference (ticket, log id)';
+    var fresh = node('select'); [['', 'Keep the clock'], ['yes', 'Give back the time lost at the fault']].forEach(function (x) { var o = node('option', null, x[1]); o.value = x[0]; fresh.appendChild(o); });
+    var faultAt = node('input'); faultAt.type = 'datetime-local';
+    var lab = function (t, i) { var l = node('label', 'field', t); l.appendChild(i); return l; };
+    box.appendChild(lab('Reason', reason)); box.appendChild(lab('Evidence', evidence)); box.appendChild(lab('Clock', fresh)); box.appendChild(lab('Fault time (for a fresh clock)', faultAt));
+    var reset = node('button', 'btn danger', 'Restart sitting');
+    /* the server refuses a restart after handover or submit while the seed policy is open; say why here */
+    var x = s.sitting;
+    if (x && (x.submittedAt || x.handedOverAt)) { reset.disabled = true; reset.title = 'Refused after handover or submit until the operator decides the seed policy (spec 13.5 item 6.7).'; }
+    reset.onclick = function () {
+      if (!window.confirm('Restart this sitting (same lab)? The attempt is archived.')) { return; }
+      var p = { uid: s.uid, reason: reason.value, evidence: evidence.value };
+      if (fresh.value === 'yes') { p.freshClock = true; p.faultAt = faultAt.value ? new Date(faultAt.value).getTime() : null; }
+      call('mdfinalReset', p).then(function () { say('Restarted.'); return reload(); }).catch(function (e) { say(e.message, true); });
+    };
+    var prov = node('button', 'btn', 'Provision PC');
+    prov.onclick = function () {
+      if (!window.confirm('Replace this student\'s PC with the fabric baseline? Phase 1 is graded as it stood.')) { return; }
+      call('mdfinalProvision', { uid: s.uid, reason: evidence.value }).then(function () { say('Provisioned.'); return reload(); }).catch(function (e) { say(e.message, true); });
+    };
+    box.appendChild(reset); box.appendChild(prov);
+    return box;
+  }
+
+  /* Loads a class, or every sitting (admin, no class). */
+  function load(classId, sweep) {
+    say('Loading...');
+    var p = {}; if (classId) { p.classId = classId; } if (sweep) { p.sweep = true; }
+    return call('mdfinalResults', p).then(function (r) {
+      say('');
+      if (r.classes && !r.students) { fillClasses(r.classes); return; }
+      data = r;
+      el('rosterTitle').textContent = r.class ? 'Class ' + r.class.name + ' (' + r.students.length + ' of ' + (r.memberCount || r.students.length) + ')' : 'All sittings' + (r.truncated ? ' (first 500)' : '');
+      renderRoster();
+    }).catch(function (e) { say(e.message, true); });
+  }
+  function reload() { return load(el('classPick').value || el('classId').value.trim() || null, false); }
+  function fillClasses(list) {
+    var pick = el('classPick'), keep = pick.value;
+    pick.textContent = '';
+    pick.appendChild(node('option', null, 'Choose a class')).value = '';
+    list.forEach(function (c) { var o = node('option', null, c.name + ' (' + c.memberCount + ')'); o.value = c.id; pick.appendChild(o); });
+    pick.value = keep;
+  }
+
+  el('classPick').onchange = function () { if (el('classPick').value) { load(el('classPick').value); } };
+  /* a class the picker does not list (more than 500 classes, or a late assignment) */
+  el('btnClassId').onclick = function () { var id = el('classId').value.trim(); if (id) { el('classPick').value = ''; load(id); } };
+  el('examPick').onchange = function () { el('detailCard').hidden = true; boot(); };
+  el('btnRefresh').onclick = reload;
+  el('btnAll').onclick = function () { el('classPick').value = ''; load(null); };
+  el('btnSweep').onclick = function () {
+    if (!window.confirm('Auto-submit every expired, unsubmitted sitting in this view?')) { return; }
+    load(el('classPick').value || el('classId').value.trim() || null, true).then(function () { say('Swept.'); });
+  };
+  el('btnCsv').onclick = function () {
+    if (!data || !data.csv) { return; }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([data.csv], { type: 'text/csv' }));
+    a.download = examId() + (data.class ? '-' + data.class.id : '-all') + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  el('btnControl').onclick = function () {
+    var p = { allowUids: {} };
+    if (el('armSel').value) { p.armed = el('armSel').value === 'true'; }
+    if (el('allowAdd').value.trim()) { p.allowUids.add = [el('allowAdd').value.trim()]; }
+    if (el('allowRemove').value.trim()) { p.allowUids.remove = [el('allowRemove').value.trim()]; }
+    call('mdfinalControl', p).then(function (r) {
+      el('controlState').textContent = 'Armed: ' + (r.armed ? 'yes' : 'no') + '. Allowlisted: ' + (r.allowUids.length ? r.allowUids.join(', ') : 'none') + '.';
+      el('allowAdd').value = ''; el('allowRemove').value = '';
+    }).catch(function (e) { say(e.message, true); });
+  };
+
+  /* First load: a handler gets their classes; an admin gets every sitting (and the admin tools). */
+  function boot() {
+    return call('mdfinalResults', {}).then(function (r) {
+      isAdminView = !!r.students;
+      ['btnAll', 'btnSweep', 'controlCard'].forEach(function (id) { el(id).hidden = !isAdminView; });
+      if (r.students) { data = r; el('rosterTitle').textContent = 'All sittings' + (r.truncated ? ' (first 500)' : ''); renderRoster(); }
+      if (r.classes) { fillClasses(r.classes); }
+    }).catch(function (e) { say(e.message, true); });
+  }
+
+  (typeof FirebaseAuth !== 'undefined' && typeof FirebaseAuth.waitForAuth === 'function' ? FirebaseAuth.waitForAuth() : Promise.reject(new Error('Sign-in is unavailable.')))
+    .then(function (user) { if (!user) { say('Sign in with a staff account.', true); return null; } return boot(); })
+    .catch(function (e) { say(e.message, true); });
+})();
+</script>
+</body>
+</html>

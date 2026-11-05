@@ -82,6 +82,7 @@
   .term .in { color: #93c5fd; }
   .termbar { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--border); }
   .termbar input { flex: 1; font-family: var(--mono); }
+  .termbar .mode { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); align-self: center; white-space: nowrap; }
   .gate { max-width: 720px; margin: 60px auto; padding: 0 16px; text-align: center; }
   .gate .msg { color: var(--muted); }
   .bad { color: var(--bad); }
@@ -106,6 +107,7 @@
   <button class="btn primary" id="btnSubmit" hidden>Submit exam</button>
   <span class="clock" id="clock">--:--</span>
 </div>
+<p class="notice" id="handoverCue" hidden>40 minutes or less left: the brief asks you to hand the PC over by now.</p>
 
 <div class="gate" id="gate"><p class="msg" id="gatemsg">Checking your sign-in and starting the exam...</p></div>
 
@@ -143,6 +145,7 @@
       <div class="term" id="term" aria-live="polite"></div>
       <div class="termbar">
         <select id="consoleSel" aria-label="Console"></select>
+        <span class="mode" id="termMode"></span>
         <input id="termInput" autocomplete="off" spellcheck="false" maxlength="500" aria-label="Command">
         <button class="btn" id="termRun">Run</button>
       </div>
@@ -159,7 +162,7 @@
 (function () {
   'use strict';
   var EXAM_ID = /[?&]exam=rehearsal\b/.test(location.search) ? 'md100-final-rehearsal' : 'md100-final-2026';
-  var state = { start: null, init: null, windows: [], consoles: [], open: null, remaining: 0, submitted: false };
+  var state = { start: null, init: null, windows: [], consoles: [], open: null, view: null, remaining: 0, submitted: false, handedOver: false };
   var reqSeq = 0, clockSeq = 0, tick = null;
 
   var NAMES = {
@@ -187,11 +190,6 @@
   var ACRONYMS = ['IP', 'DNS', 'AC', 'DC', 'VM', 'CPU', 'MB', 'GB', 'KB', 'ID', 'RDP', 'NLA', 'TPM', 'VTPM', 'UAC', 'OS', 'MSI', 'SMB1', 'WU', 'FVE', 'RX', 'OOBE', 'LOB', 'VHDX', 'DHCP', 'GUID'];
   function txt(v) { if (v === null || v === undefined) { return ''; } if (isS(v)) { return String(v.$s); } if (typeof v === 'boolean') { return v ? 'Yes' : 'No'; } return String(v); }
 
-  function telemetry(kind, detail) {
-    try { if (window.ObservatoryTelemetry && ObservatoryTelemetry.log) { ObservatoryTelemetry.log({ area: 'mdfinal', kind: kind, detail: detail, examId: EXAM_ID }); } }
-    catch (e) { /* telemetry must never break an exam in progress */ }
-  }
-
   /* One callable. The clock is taken only from the newest request's reply (netfinal lesson: an
      older reply carries more time). A lost revision race ('aborted') is retried once. */
   function call(name, data, attempt) {
@@ -218,6 +216,8 @@
     var s = Math.ceil(state.remaining / 1000), m = Math.floor(s / 60);
     el('clock').textContent = (m < 10 ? '0' : '') + m + ':' + ((s % 60) < 10 ? '0' : '') + (s % 60);
     el('clock').classList.toggle('low', s <= 600);
+    /* the brief's handover time, as a plain notice (no advice about the build) */
+    el('handoverCue').hidden = state.handedOver || state.submitted || s > 2400 || s === 0;
   }
   function startTick() {
     if (tick) { clearInterval(tick); }
@@ -287,7 +287,7 @@
         var status = node('span', 'msg', '');
         save.onclick = function () {
           status.textContent = 'Saving...';
-          call('mdfinalAnswer', { fieldId: f.id, value: input.value }).then(function () { status.textContent = 'Saved.'; telemetry('answer', f.id); })
+          call('mdfinalAnswer', { fieldId: f.id, value: input.value }).then(function () { status.textContent = 'Saved.'; })
             .catch(function (e) { status.textContent = e.message; });
         };
         lab.appendChild(input); r.appendChild(lab); r.appendChild(save); r.appendChild(status);
@@ -348,7 +348,6 @@
     renderLauncher();
     refreshWindow();
     renderActions(w);
-    telemetry('window', w);
   }
   function refreshWindow() {
     var w = state.open;
@@ -357,19 +356,52 @@
     if (ADDRESS[w] && el('addrInput').value.trim()) { p[ADDRESS[w]] = el('addrInput').value.trim(); }
     return call('mdfinalWindow', { window: w, params: p }).then(function (r) {
       var v = el('view'); v.textContent = ''; v.appendChild(renderValue(r.view));
+      state.view = r.view;
+      fillSuggestions(w, r.view);
       setScreen(r.screen);
     }).catch(function (e) { var v = el('view'); v.textContent = ''; v.appendChild(node('p', 'bad', e.message)); });
   }
 
+  /* Values a field can take that the open window already lists (Nancy R5): offered as suggestions,
+     so a student picks "Pro" or a time-zone id instead of guessing the exact spelling. */
+  function suggestionsFor(w, param, v) {
+    if (!v) { return []; }
+    if (param === 'edition' && v.editionValues) { return v.editionValues; }
+    if (param === 'iso' && v.isoLibrary) { return v.isoLibrary; }
+    if (param === 'dvdIso' && v.isoLibrary) { return v.isoLibrary; }
+    if (param === 'switch' && v.switches) { return v.switches.map(function (s) { return s.name; }); }
+    if (param === 'id' && v.time && v.time.zones) { return v.time.zones.map(function (z) { return z.id; }); }
+    if ((param === 'plan' || param === 'basedOn') && v.plans) { return v.plans.map(function (p) { return txt(p.name); }); }
+    if (param === 'name' && w === 'services' && v.services) { return v.services.map(function (s) { return s.name; }); }
+    if (param === 'path' && w === 'taskschd' && v.tasks) { return v.tasks.map(function (t) { return t.path; }); }
+    if (param === 'name' && w === 'taskmgr' && v.startup) { return v.startup.map(function (s) { return s.name; }); }
+    return [];
+  }
+  function fillSuggestions(w, v) {
+    Array.prototype.forEach.call(document.querySelectorAll('#actions [data-param]'), function (i) {
+      if (i.tagName !== 'INPUT' || i.type !== 'text') { return; }
+      var list = suggestionsFor(w, i.dataset.param, v);
+      var id = 'dl-' + i.id;
+      var dl = document.getElementById(id);
+      if (!list.length) { if (dl) { dl.remove(); } i.removeAttribute('list'); return; }
+      if (!dl) { dl = node('datalist'); dl.id = id; document.body.appendChild(dl); }
+      dl.textContent = '';
+      list.forEach(function (x) { var o = node('option'); o.value = String(x); dl.appendChild(o); });
+      i.setAttribute('list', id);
+    });
+  }
+
   /* ── action forms, built from the server's action table ── */
+  var fieldSeq = 0;
   function fieldFor(name, spec, required) {
     var lab = node('label', 'field', words(name) + (required ? ' *' : '')), input;
     if (spec.type === 'enum') {
-      input = node('select'); if (!required) { input.appendChild(node('option', null, '')); }
+      input = node('select'); if (!required) { var e0 = node('option', null, '(Windows default)'); e0.value = ''; input.appendChild(e0); }
       spec.values.forEach(function (x) { var o = node('option', null, x); o.value = x; input.appendChild(o); });
     } else if (spec.type === 'bool') {
       input = node('select');
-      [['', ''], ['true', 'Yes'], ['false', 'No']].forEach(function (x) { if (required && !x[0]) { return; } var o = node('option', null, x[1]); o.value = x[0]; input.appendChild(o); });
+      /* a blank boolean is not "No": it leaves the Windows default, so it says so (Nancy R5) */
+      [['', '(Windows default)'], ['true', 'Yes'], ['false', 'No']].forEach(function (x) { if (required && !x[0]) { return; } var o = node('option', null, x[1]); o.value = x[0]; input.appendChild(o); });
     } else if (spec.type === 'int') {
       input = node('input'); input.type = 'number'; if (spec.min !== undefined) { input.min = spec.min; } if (spec.max !== undefined) { input.max = spec.max; }
     } else if (spec.type === 'string' && spec.max > 500) {
@@ -379,6 +411,9 @@
       if (name === 'password') { input.type = 'password'; }
     }
     input.dataset.param = name; input.dataset.type = spec.type;
+    if (required) { input.dataset.required = '1'; }
+    input.id = 'f' + (++fieldSeq);
+    if (input.tagName === 'INPUT' && !input.type) { input.type = 'text'; }
     lab.appendChild(input);
     return lab;
   }
@@ -386,7 +421,9 @@
     var out = {};
     Array.prototype.forEach.call(form.querySelectorAll('[data-param]'), function (i) {
       var v = i.value, t = i.dataset.type, k = i.dataset.param;
-      if (v === '') { return; }
+      /* an empty value is sent only for a required text field (an emptied hosts file), never for an
+         optional one, which keeps its Windows default */
+      if (v === '' && !(i.dataset.required && (t === 'string'))) { return; }
       if (t === 'bool') { out[k] = v === 'true'; }
       else if (t === 'int') { out[k] = Number(v); }
       else if (t === 'int-list') { out[k] = v.split(',').map(function (x) { return Number(x.trim()); }); }
@@ -413,7 +450,6 @@
         call('mdfinalAction', { window: w, action: a.id.split('/')[1], params: params }).then(function (r) {
           showOutput(r.result.msg, !r.result.ok);
           afterChange(r);
-          telemetry('action', a.id);
         }).catch(function (e) { showOutput(e.message, true); }).then(function () { go.disabled = false; });
       };
       d.appendChild(f);
@@ -455,10 +491,10 @@
     input.value = '';
     call('mdfinalCommand', { console: cons, line: line }).then(function (r) {
       termWrite(r.out);
+      el('termMode').textContent = r.context ? (CONSOLE_NAMES[r.context] || r.context) + '  ' + String(r.prompt || '').trim() : '';
       /* the console asks for a secret with a line ending "Password:"; the next line is masked */
       input.type = /password[^\n]*:\s*$/i.test(String(r.out || '')) ? 'password' : 'text';
       afterChange(r);
-      telemetry('command', cons);
     }).catch(function (e) { termWrite(e.message, 'bad'); });
   }
 
@@ -471,9 +507,8 @@
         return call('mdfinalHandover', { confirm: true }).then(function (r) {
           state.init = r.initialState || state.init;
           if (r.initialState) { state.windows = r.initialState.windows; setConsoles(r.initialState.consoles); }
-          el('btnHandover').hidden = true; el('btnReset').hidden = true;
+          el('btnHandover').hidden = true; el('btnReset').hidden = true; state.handedOver = true; paintClock();
           renderTicket(); showSide('ticket'); afterChange(r);
-          telemetry('handover', '');
         });
       }).catch(function (e) { showOutput(e.message, true); });
   }
@@ -482,7 +517,7 @@
     confirmStep('Restart your build from the beginning? Your clock keeps running, it is not a second attempt, and any penalty already incurred still counts. Restarts left: ' + left + '.')
       .then(function (ok) {
         if (!ok) { return; }
-        return call('mdfinalReset', {}).then(function () { telemetry('self-reset', ''); reload(null); });
+        return call('mdfinalReset', {}).then(function () { reload('[Build restarted: a fresh PC on the same lab. Your clock kept running.]'); });
       }).catch(function (e) { showOutput(e.message, true); });
   }
   function submit(auto) {
@@ -513,7 +548,6 @@
   }
   function boot(r, note) {
     state.start = r;
-    if (r.examMode && r.examMode.loadHexAI) { telemetry('exam-mode-conflict', 'loadHexAI was true'); }
     if (r.submitted) { showReport(r.report, note || 'This exam has been submitted.'); return; }
     state.init = r.initialState;
     state.windows = r.initialState.windows;
@@ -523,6 +557,9 @@
     el('btnSubmit').hidden = false;
     el('btnHandover').hidden = !!r.handedOver;
     el('btnReset').hidden = !!r.handedOver || !(r.selfResetsLeft > 0);
+    /* a restarted build shows nothing of the old attempt (Nancy R5 #1) */
+    state.open = null; el('windowPanel').hidden = true; el('view').textContent = ''; showOutput('', false); el('term').textContent = '';
+    state.handedOver = !!r.handedOver;
     renderBrief(); renderTicket(); renderLauncher();
     termWrite(r.resumed ? '[session resumed: same lab, same clock]' : '[Lab ready. Start in Hyper-V Manager on the host.]');
     if (note) { termWrite(note); }

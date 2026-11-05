@@ -11919,7 +11919,14 @@ exports.mdfinalResults = onCall(mdfinalOpts, async (request) => {
             const students = await rowsFor(uids, null);
             /* re-read after any sweep, so the CSV carries the auto-submitted grades */
             const sessions = await Promise.all(uids.map(async (u) => MD.fromDocument(await store.get(MD.sessionIdFor(u, examId)))));
-            return { examId, contentId, students, csv: MD.resultsCsv(sessions.filter(Boolean)), truncated: snap.size >= 500 };
+            /* and the classes that assigned the final, so the results page can open one */
+            const all = contentId ? await db.collection('classes').limit(500).get() : { docs: [] };
+            const classes = (await Promise.all(all.docs.map(async (c) => {
+                const a = await c.ref.collection('assignments').where('contentId', '==', contentId).get();
+                if (!a.docs.some((d) => d.data().isActive !== false)) { return null; }
+                return { id: c.id, name: c.data().name || c.id, memberCount: (c.data().memberUids || []).length };
+            }))).filter(Boolean);
+            return { examId, contentId, students, classes, csv: MD.resultsCsv(sessions.filter(Boolean)), truncated: snap.size >= 500 };
         }
         if (request.auth.token.handler !== true) { throw new HttpsError('permission-denied', 'Only an instructor or admin can view exam results.'); }
         const own = await db.collection('classes').where('handlerUid', '==', request.auth.uid).get();
@@ -11932,6 +11939,11 @@ exports.mdfinalResults = onCall(mdfinalOpts, async (request) => {
     }
 
     if (typeof data.classId !== 'string' || !MDFINAL_CLASS_ID.test(data.classId)) { throw new HttpsError('invalid-argument', 'Invalid classId.'); }
+    /* the claim is checked before the class is read, so a non-staff caller cannot learn which class
+     * ids exist (Mallory R5 L3) */
+    if (!admin && request.auth.token.handler !== true) {
+        throw new HttpsError('permission-denied', 'Only the instructor of a class that assigned this exam, or an admin, can view its results.');
+    }
     const cls = await db.doc(`classes/${data.classId}`).get();
     if (!cls.exists) { throw new HttpsError('not-found', 'No such class.'); }
     if (!admin) {

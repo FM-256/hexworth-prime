@@ -175,4 +175,13 @@ const CLIENT = kit.req('mdfinal-client.js');
     t.check(s.ledger.slice(n1).some((l) => l.k === 'eventvwr'), 'F1: (could fail) a real log still is');
 }
 
+/* Mallory R5 L5: the answer-sheet tool trims the secret, so a test secret with whitespace is refused */
+{
+    const { execFileSync } = require('child_process');
+    let out = '';
+    try { out = execFileSync('node', [require('path').join(__dirname, 'mdfinal-walkthrough.js'), '--student', 'x'], { env: Object.assign({}, process.env, { MDFINAL_SEED_SECRET: ' ' + kit.TEST_SECRET + '\n' }), encoding: 'utf8' }); }
+    catch (e) { out = String(e.stdout || ''); }
+    t.check(/test secrets are refused/.test(out) && !/answer sheet/.test(out), 'a test secret with stray whitespace is refused by --student');
+}
+
 t.done();

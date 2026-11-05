@@ -531,7 +531,7 @@
         return {
             sat: true, passed: pass, completed: pass,
             score: Math.round(rep.total * 100) / 100, total: sr.total, outOf: 100,
-            phases: sr.phases, objectives: sr.objectives,
+            phases: sr.phases, objectives: E.GRADE.objectiveTotals(rep),
             satAt: new Date(session.submittedAt).toISOString(), completedAt: pass ? new Date(session.submittedAt).toISOString() : null,
             duration: Math.max(0, Math.round(Number(rep.durationUsedMs || 0) / 1000)),
             flagged: !!(session.lineage.selfResets || session.lineage.adminResets),

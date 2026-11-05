@@ -564,8 +564,12 @@ function collect() {
        page calls ModuleProgress for it, so none of the sources above can see it, and without this
        the strict registry check would reject a completion the platform itself wrote. Read from the
        module, not copied here. */
-    const exams = require(path.join(REPO, 'functions/netfinal/netfinal-exams.js'));
-    for (const id of Object.values(exams.CATALOG_IDS || {})) { ids.add(id); sources.serverExams++; }
+    /* Every server-graded exam module lists its catalog ids the same way (spec md100-final 1.6). */
+    const SERVER_EXAM_MODULES = ['functions/netfinal/netfinal-exams.js', 'functions/mdfinal/mdfinal-exams.js'];
+    for (const mod of SERVER_EXAM_MODULES) {
+        const exams = require(path.join(REPO, mod));
+        for (const id of Object.values(exams.CATALOG_IDS || {})) { ids.add(id); sources.serverExams++; }
+    }
 
     const legacy = JSON.parse(fs.readFileSync(LEGACY, 'utf8'));
     for (const id of legacy.ids) { ids.add(id); sources.legacy++; }

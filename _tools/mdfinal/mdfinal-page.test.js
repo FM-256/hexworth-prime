@@ -76,4 +76,20 @@ t.check(/exam=rehearsal/.test(script) && /'md100-final-rehearsal'/.test(script) 
 /* handover asks twice and quotes the spec's consequence text */
 t.check(/Phases 1-6 are recorded as they stand now/.test(script) && (script.match(/confirmStep\(/g) || []).length >= 4, 'handover is a two-step confirmation with the 2.4 text');
 
+/* the staff results page */
+{
+    const R = fs.readFileSync(path.join(REPO, '_app/houses/forge/md-100/exams/md100-final-results.html'), 'utf8');
+    const rs = R.split('<script>').pop().split('</script>')[0];
+    const rsrcs = (R.match(/<script[^>]*src="([^"]+)"/g) || []).map((s) => s.match(/src="([^"]+)"/)[1]);
+    t.check(JSON.stringify(rsrcs) === JSON.stringify(['../../../../components/AccessGuard.js', '../../../../components/FirebaseAuth.js']), 'results page loads only AccessGuard and FirebaseAuth');
+    t.check(rs.indexOf('innerHTML') < 0, 'results page never parses server text as HTML');
+    let ok = true; try { new Function(rs); } catch (e) { ok = false; }
+    t.check(ok, 'results page script parses');
+    t.check(!/position\s*:\s*fixed/i.test(R) && !/[\u2014\u2013]/.test(R) && !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(R), 'results page: no fixed positioning, long dashes or emoji');
+    const rcalled = [...new Set((rs.match(/call\('(mdfinal\w+)'/g) || []).map((c) => c.slice(6, -1)))];
+    t.check(['mdfinalResults', 'mdfinalReset', 'mdfinalProvision', 'mdfinalControl'].every((c) => rcalled.indexOf(c) >= 0), 'results page calls the staff callables: ' + rcalled.join(','));
+    rcalled.forEach((c) => t.check(new RegExp('exports\\.' + c + ' = onCall').test(idx), 'callable exists in index.js: ' + c));
+    t.check(/'vm_unreachable', 'provision_failed', 'engine_error', 'outage'/.test(rs), 'restart reasons are the platform fault codes');
+}
+
 t.done();

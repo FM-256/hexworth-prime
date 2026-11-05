@@ -5,7 +5,11 @@
  * @catalog what    --qc N: every profile x variant class plus N random seeds must score 100.00 by
  * @catalog what    the canonical walk; --print-steps: per-variant step counts (Chris's step-count
  * @catalog what    proxy, spec 13.5 item 1); --print-weights: the 3.5/3.6 tables derived from CHECKS.
+ * @catalog what    --student <uid> [--rehearsal]: one student's answer sheet (edition, channel, key,
+ * @catalog what    resiliency, fault, ticket, accepted evidence and verification) for staff marking
+ * @catalog what    and disputes. Needs the bound secret in MDFINAL_SEED_SECRET; never prints it.
  * @catalog run     node _tools/mdfinal/mdfinal-walkthrough.js --qc 300 | --print-steps | --print-weights
+ * @catalog run     MDFINAL_SEED_SECRET=... node _tools/mdfinal/mdfinal-walkthrough.js --student <uid>
  * @catalog status  TOOL
  */
 const kit = require('./mdfinal-test-kit.js');
@@ -48,3 +52,47 @@ if (qi >= 0) {
     console.log('qc: ' + runs + ' sittings, ' + bad + ' not 100');
     process.exitCode = bad ? 1 : 0;
 }
+
+/* ── one student's answer sheet (spec 8 D10: "Solutions key doc (--student <uid>), run by the
+ * operator with the secret"). The secret comes ONLY from the environment, never an argument (an
+ * argument lands in shell history), and is never printed. The sheet is the student's key: print it
+ * to a private place, never to a shared channel. ── */
+const si = argv.indexOf('--student');
+if (si >= 0) {
+    const FAULTS = kit.req('mdfinal-faults.js');
+    const ANS = kit.req('mdfinal-answers.js');
+    const EXAMS = kit.req('mdfinal-exams.js');
+    const uid = argv[si + 1];
+    const examId = flag('--rehearsal') ? EXAMS.REHEARSAL_EXAM_ID : EXAMS.DEFAULT_EXAM_ID;
+    const rawSecret = process.env.MDFINAL_SEED_SECRET || '';
+    /* trimmed as the engine trims it (deriveKey), so stray whitespace cannot produce a silently wrong
+     * sheet or slip a test secret past the refusal (Mallory R5 L5) */
+    const secret = rawSecret.trim();
+    if (secret !== rawSecret) { console.log('Note: MDFINAL_SEED_SECRET had leading or trailing whitespace; it was trimmed.'); }
+    if (!uid || uid[0] === '-') { console.log('Usage: MDFINAL_SEED_SECRET=... node mdfinal-walkthrough.js --student <uid> [--rehearsal]'); process.exit(2); }
+    if (!secret || secret === kit.TEST_SECRET || secret === kit.ALT_SECRET) { console.log('Set MDFINAL_SEED_SECRET to the bound exam secret (the test secrets are refused).'); process.exit(2); }
+    const opts = { secret };
+    const key = CORE.buildAnswerKey(uid, examId, opts);
+    const state = CORE.generate(uid, examId, opts);
+    const wo = state.wo, f = FAULTS.CATALOGUE[key.variant];
+    /* the evidence set as it will stand for this student: domain events only on a domain work order */
+    const probe = { identity: { membership: { type: wo.join.type, pending: null } } };
+    const evidence = FAULTS.evidenceSet(probe, key);
+    const lines = [
+        'MD-100 final answer sheet: ' + uid + ' (' + examId + ', generator ' + key.version + ')',
+        'Work order ' + wo.ticket + ', hostname ' + wo.hostname + ', technician ' + key.technician,
+        'Edition: Windows 11 ' + key.edition + '; channel ' + key.channel + '; expected key ' + (key.channel === 'KMS' ? key.productKey + ' with /skms ' + wo.network.kms.fqdn + ' or ' + wo.network.kms.ip : wo.mak + ' (the work order MAK)'),
+        'Storage space resiliency: ' + key.resiliency,
+        'Fault ' + key.variant + ' (' + f.category + '): "' + f.ticket + '"',
+        '  KB-B ' + key.fault.kb + ', driver ' + key.fault.driverInf + ', decoy IP ' + key.fault.decoyIp,
+        '  I1 accepted: ' + f.category,
+        '  I2 accepted (normalised): ' + evidence.join(', '),
+        '  I3 accepted: ' + Object.keys(f.verify).join(' | ') + ' (with the matching event after the fix)',
+        '  qualifying diagnostics: ' + f.diag.join(', '),
+        '  credited fix events: ' + f.fix.join(', '),
+        'B1: the first 8 characters of the recovery-password protector ID the student created (read from their sitting); B2: the method they set (expected XTS-AES 256).',
+        'P8 field labels: ' + Object.keys(ANS.FIELDS).map((k) => k + ' ' + ANS.FIELDS[k].label).join('; ')
+    ];
+    console.log(lines.join('\n'));
+}
+

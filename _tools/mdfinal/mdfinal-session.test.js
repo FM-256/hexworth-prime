@@ -162,6 +162,7 @@ async function rejects(p, code, label) {
         const res = await EXAM.startExam(f.st, { studentId: 'flow-1', examId: EX }, f.o);
         t.check(res.submitted === true && res.report && res.report.total === 0 && !res.report.rows, 'resume after submit: aggregates-only report');
         t.check(res.report.p7Reason === undefined && JSON.stringify(res.report).indexOf('parts') < 0, 'student report carries no rows, parts or reasons');
+        t.check(res.report.objectives === undefined && Object.keys(res.report).sort().join(',') === 'outOf,phases,total', 'student report is total and phases only (Mallory R5 L2: some objectives are one check)');
 
         const g = await fresh('flow-2');
         g.c.add(150 * 60000);

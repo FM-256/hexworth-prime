@@ -275,6 +275,9 @@ chk('the handler sees the full report for staff', hr.students.find((s) => s.uid 
 chk('the handler cannot sweep', (await code(call(F.mdfinalResults, handler('teach'), { examId: EX, classId: 'c-md', sweep: true }))) === 'permission-denied');
 chk('a handler without the claim is refused', (await code(call(F.mdfinalResults, { auth: { uid: 'teach', token: {} } }, { examId: EX, classId: 'c-md' }))) === 'permission-denied');
 chk('a handler cannot read a class they do not own', (await code(call(F.mdfinalResults, handler('other'), { examId: EX, classId: 'c-md' }))) === 'permission-denied');
+chk('a student gets the same answer for a real class and a missing one (Mallory R5 L3)',
+    (await code(call(F.mdfinalResults, student('stu'), { examId: EX, classId: 'c-md' }))) === 'permission-denied'
+    && (await code(call(F.mdfinalResults, student('stu'), { examId: EX, classId: 'no-such-class' }))) === 'permission-denied');
 chk('a handler cannot read their own class that did not assign the final', (await code(call(F.mdfinalResults, handler('teach'), { examId: EX, classId: 'c-none' }))) === 'permission-denied');
 const list = await call(F.mdfinalResults, handler('teach'), { examId: EX });
 chk('without a class, a handler gets their assigning classes', list.classes.length === 1 && list.classes[0].id === 'c-md');
@@ -303,6 +306,7 @@ Date.now = realNow;
 const lateDoc = docs.get('mdfinal_sessions/late::' + EX);
 chk('an admin sweep auto-submits the expired sitting', !!lateDoc.submittedAt && lateDoc.autoSubmitted === true);
 const all = await call(F.mdfinalResults, admin('boss'), { examId: EX });
+chk('an admin without a class also gets the classes that assigned the final', Array.isArray(all.classes) && all.classes.some((c) => c.id === 'c-md') && !all.classes.some((c) => c.id === 'c-none'), JSON.stringify(all.classes));
 chk('an admin without a class gets every sitting of the exam (stu, late, mut, anon1)', all.students.length === 4 && /studentId,total/.test(all.csv), all.students.map((s) => s.uid).join(','));
 
 section('secret: a weak bound secret fails closed');

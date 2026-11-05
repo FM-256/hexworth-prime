@@ -37,7 +37,8 @@ const t = kit.harness('mdfinal-render');
  * FirebaseAuth with the two methods the page uses, pointed at the local bridge. */
 const STUBS = {
     'AccessGuard.js': 'window.AccessGuard = { require: function () {} };',
-    'ObservatoryTelemetry.js': 'window.ObservatoryTelemetry = { log: function () {} };',
+    /* the real component's shape: init only (it beacons page views itself; the page calls nothing on it) */
+    'ObservatoryTelemetry.js': 'window.ObservatoryTelemetry = { init: function () {} };',
     'FirebaseAuth.js': [
         'window.FirebaseAuth = {',
         '  waitForAuth: function () { return Promise.resolve({ uid: ' + JSON.stringify(UID) + ' }); },',
@@ -159,6 +160,16 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
         await page.keyboard.press('Enter');
         await page.waitForFunction(() => /Generation/.test(document.getElementById('term').textContent), { timeout: 5000 });
         t.check(true, 'a console command runs and prints');
+        t.check(await page.evaluate(() => { const i = document.querySelector('details.action[data-action="hyperv/new-vm"] [data-param="iso"]'); const dl = i && i.getAttribute('list') && document.getElementById(i.getAttribute('list')); return !!dl && dl.options.length === 3; }),
+            'the ISO field offers the three ISOs the window lists');
+        t.check(/Host PowerShell/.test(await page.$eval('#termMode', (e) => e.textContent)), 'the console shows which console and prompt it is on');
+        /* Restart build: nothing of the old attempt stays on screen (Nancy R5 #1) */
+        await page.click('#btnReset');
+        await page.waitForFunction(() => !document.getElementById('modal').hidden, { timeout: 3000 });
+        await page.click('#modalYes');
+        await page.waitForFunction(() => /Build restarted/.test(document.getElementById('term').textContent) && !/Generation/.test(document.getElementById('term').textContent), { timeout: 5000 });
+        t.check(await page.evaluate(() => document.getElementById('windowPanel').hidden && document.getElementById('view').textContent === '' && document.getElementById('output').hidden),
+            'Restart build clears the window, the output and the console');
 
         /* ── every window renders after a full build (built server-side by the walk) ── */
         await MD.resetSession(store, { sessionId: MD.sessionIdFor(UID, EX), callerUid: UID, targetUid: UID, token: {}, adminEmails: [] }, OPTS);
@@ -181,6 +192,18 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
             if (v.err || !v.text.trim()) { bad.push(n); }
         }
         t.check(bad.length === 0, 'every window renders without an error: ' + bad.join(', '));
+        /* an emptied required text field is sent as '' (Nancy R5: an emptied hosts file was refused) */
+        await page.evaluate(() => [...document.querySelectorAll('#launcher button')].find((b) => b.textContent === 'Notepad').click());
+        await page.waitForFunction(() => document.querySelector('details.action[data-action="notepad/hosts-save"]'), { timeout: 5000 });
+        await page.evaluate(() => {
+            const d = document.querySelector('details.action[data-action="notepad/hosts-save"]'); d.open = true;
+            d.querySelector('[data-param="text"]').value = '';
+            d.querySelector('button[type="submit"]').click();
+        });
+        await page.waitForFunction(() => !document.getElementById('output').hidden || document.querySelector('details.action[data-action="notepad/hosts-save"] button[type="submit"]').disabled === false, { timeout: 5000 });
+        await sleep(300);
+        const hostsOut = await page.$eval('#output', (e) => e.textContent);
+        t.check(!/not available/.test(hostsOut), 'saving an emptied hosts file is accepted (' + hostsOut.slice(0, 60) + ')');
         if (process.env.MDFINAL_SHOTS) {
             await page.evaluate(() => [...document.querySelectorAll('#launcher button')].find((b) => b.textContent === 'Settings').click());
             await sleep(400);
