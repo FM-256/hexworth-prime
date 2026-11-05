@@ -149,12 +149,13 @@
              * and Stop-Process -Id finds the same process (Mallory R4 F4) */
             var rows = SYS.sys(state).processes.map(function (p, i) { return { p: p, id: 1000 + i * 4 }; })
                 .filter(function (x) { return n === undefined || M.like(x.p.name, String(n).replace(/\.exe$/i, ''), M.budget()).match; })
-                .map(function (x) { return { ProcessName: x.p.name, Id: x.id, CPU: x.p.cpu, WorkingSet: x.p.wsMB * 1048576, WS_MB: x.p.wsMB }; });
+                .map(function (x) { return { ProcessName: x.p.name, Name: x.p.name, Id: x.id, CPU: x.p.cpu, WorkingSet: x.p.wsMB * 1048576, WS_MB: x.p.wsMB }; });
             /* the evidence this route showed is the processes it LISTED, never the reply text: an error
              * echoes the typed name (Mallory R7: -Name "x msynchlp" stamped msynchlp unseen) */
             seenFromData(state, 'get-process', rows.map(function (r) { return r.ProcessName; }));
             if (n !== undefined && !rows.length) { return 'Get-Process : Cannot find a process with the name "' + String(n).slice(0, 40) + '".'; }
-            return objs(rows, ['ProcessName', 'Id', 'CPU', 'WorkingSet', 'WS_MB'], ['ProcessName', 'Id', 'CPU', 'WS_MB']);
+            /* Name is PowerShell's own alias of ProcessName (Nancy R9: `Select-Object Name` printed blanks) */
+            return objs(rows, ['ProcessName', 'Name', 'Id', 'CPU', 'WorkingSet', 'WS_MB'], ['ProcessName', 'Id', 'CPU', 'WS_MB']);
         };
         /* The process at an Id as Get-Process numbers them (Mallory R4 F4), or null. */
         function procNameById(state, id) {
@@ -321,6 +322,9 @@
         L['ping.exe'] = function (state, t) { return L['ping'](state, t); };
         L['cls'] = function () { return ''; };
         L['echo'] = function (state, t) { return t.slice(1).join(' ').slice(0, 500); };
+        /* nslookup asks the DNS server and never reads hosts, so its reply never shows the hosts
+         * decoy; the name test's data stamp is cut to what the reply shows (mdfinal-evidence.js), which
+         * is how it stops crediting the decoy (Nancy R7 low). */
         L['nslookup'] = function (state, t) {
             nameTest(state, t[1]);
             var dns = state.network.adapters.Ethernet.dns;
@@ -363,6 +367,27 @@
             return getContent(state, a, ctx);
         };
         P['type'] = P['get-content']; P['cat'] = P['get-content'];
+        /* Select-String -Path <file> -Pattern <text>: what Get-Content can read (the hosts file, TECH-USB
+         * files), each match as path:line:text. Reading the hosts file is a hosts view, and what the
+         * reply shows is stamped from its text at exec, so only the matching lines count as seen. */
+        P['select-string'] = function (state, a, ctx) {
+            var named = Object.prototype.hasOwnProperty.call(a, 'pattern');
+            var path = arg(a, ['path', 'literalpath']) || (named ? a._[0] : a._[1]);
+            if (path === undefined || path === true) { return 'Select-String : This exam console searches files: Select-String -Path <file> -Pattern <text>, or Get-Content <file> | Select-String <text>.'; }
+            path = String(path).trim();
+            /* a bad pattern is refused before the file is read, so it logs no view */
+            var budget = M.budget(), bad = api.selectLines([], a, budget);
+            if (typeof bad === 'string') { return bad; }
+            var text = P['get-content'](state, { _: [path], path: path }, ctx);
+            if (typeof text !== 'string') { return 'Select-String : Cannot search that input.'; }
+            if (text.indexOf('Get-Content : ') === 0) { return 'Select-String' + text.slice('Get-Content'.length); }
+            var lines = api.textLines(text);
+            var hits = api.selectLines(lines, a, budget);
+            if (typeof hits === 'string') { return hits; }
+            if (!hits.length) { return api.literalNote(a); }
+            return { kind: 'values', values: hits.map(function (i) { return path.slice(0, 120) + ':' + (i + 1) + ':' + lines[i]; }) };
+        };
+        P['sls'] = P['select-string'];
         Mu['set-content'] = function (state, a, ctx) {
             if (SYS.isHostsPath(arg(a, ['path'], 0))) { var r = SYS.writeHosts(state, String(arg(a, ['value'], 1) || '')); return r.ok ? '' : 'Set-Content : ' + r.msg; }
             return setContent(state, a, ctx);

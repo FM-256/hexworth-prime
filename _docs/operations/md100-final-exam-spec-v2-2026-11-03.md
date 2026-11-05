@@ -1212,3 +1212,40 @@ Code changes are in `functions/mdfinal/` and `_tools/mdfinal/`. Decisions record
    - **Run 2** (`--dup 0`): max 133 ms, 0 aborts, all checks pass.
    - The engine takes at most 2 ms per call in-process.
    - A same-document collision needs two tabs on one sitting.
+
+### 13.22 Nancy R7 Low follow-ups and Mallory R9 F1 (2026-11-04/05, after the D11 deploy)
+
+The generator is untouched (GENERATOR_VERSION 1.1.0, golden hash unchanged): these change the console and the I2 evidence stamp only.
+
+1. **`Format-Table -Wrap` and `-AutoSize` work.**
+   - `-Wrap` wraps a long cell onto continuation lines: first at its own line breaks, then at spaces. A word longer than the column is split.
+   - `-AutoSize` widens columns to their content, up to 120 characters.
+   - Before, both were ignored, and an event Message was cut at 37 characters.
+   - The V2 faulting module now shows in a wrapped table. A plain table still cuts it, as PowerShell does, and is not credited.
+2. **`Select-String` exists.** It did not exist at all before.
+   - Standalone forms: `Select-String -Path|-LiteralPath <file> -Pattern <text>`, or positional `Select-String <text> <file>`. These read what `Get-Content` reads (the hosts file, TECH-USB files) and print `path:line:text`.
+   - As a pipeline stage (`sls`), it filters `Get-Content` text, values, and the rendered rows of objects.
+   - **Matching:** the pattern is a literal (R4: no student regex), case-insensitive unless `-CaseSensitive`. `-NotMatch` inverts it.
+   - **Refused before reading:** an empty or missing pattern is refused before the file is read, so it logs no view.
+   - **A regex-looking pattern** that matches nothing says the match is literal (Nancy R9 F1), instead of printing nothing.
+   - **Text bug fixed:** a stage after `Get-Content` was skipped silently, so `Get-Content hosts | <anything>` printed the whole file.
+     - Now only Select-String applies to text; any other stage still prints the text as before.
+     - An error a producer returned is printed as is. For Get-Content, whose text is the student's own file, only its one not-found error counts (Nancy R9 F2).
+   - **A trailing line break gives no empty last line** (Nancy R9 F3; the BitLocker key file on TECH-USB ends in one).
+3. **Data stamps are cut to what the reply shows** (Mallory R9 F1, a hole that predates this change).
+   - **The hole:** `Get-Process` and the name tests (`ping`, `Test-NetConnection`, `Resolve-DnsName`, `nslookup`) stamped their evidence from data before any pipeline stage ran. `Get-Process | Measure-Object`, or any filter that kept no row, therefore credited `msynchlp` (or the decoy) with nothing on screen. Select-String added one more way to do it.
+   - **The fix:** `mdfinal-evidence.js stamp()` keeps a data stamp of those two kinds only where the final reply text also shows the value. The data still guards against a typed echo (R7, R8); the text guards against a filter.
+   - **The failed-boot `winre-view` stamp is exempt.** A console restart (`shutdown /r` from Safe Mode) returns no text while the page shows the stop screen.
+   - **nslookup:** this same cut is how nslookup stops crediting the hosts decoy. It asks the DNS server, so its reply never shows the decoy.
+   - **Mallory R9 F1b, also pre-existing:** the reply-text cut was not enough. `Get-Process | Select-Object msynchlp` echoes the typed word as a column header over blank rows, and that echo was credited.
+     - A console pipeline now cuts these stamps to the DATA it displayed. That data is built from the objects, never parsed back out of the text: one line per row of the displayed properties' values.
+     - It takes Format-Table/Format-List into account through the same `fmtProps` the stages use (`Format-Table Id` hides the names), so property names never enter it.
+     - A first version stripped the header and the list labels from the text, and Mallory defeated it (R9 F1c): a property named `"x : msynchlp"` survived the label strip.
+     - The same applies to a typed decoy IP as a header.
+   - **`Name` on Get-Process** is now PowerShell's alias of ProcessName (Nancy R9 re-check: `Select-Object Name` printed blanks).
+4. **Tests:**
+   - `mdfinal-d7.test.js` grew from 67 checks to 111. All 19 suites exit 0; qc 312/312 at 100.
+   - **F1b/F1c mutants:** all killed but one equivalent: the `cut()` guard for an entry without a stamp never fires, since both kinds are stamped when written.
+   - **Truncation dropped:** a first version modelled table truncation in the data text. No fixture could reach it (the values are whole short cells), so it was removed rather than kept untested.
+   - **Mutation:** Nancy's 20 mutants plus 6 for the R9 fixes. All 24 that still apply are killed; the 2 nslookup-specific ones no longer apply because that code was removed in favour of item 3.
+   - **Weak fixtures found and hardened:** four survivors on the first rounds were weak fixtures. Two were echo patterns ("x" matched "exist", "zzzz" matched an error echoing "zzzz"), one was a sitting already repaired, and one was a wrap width that could never be reached.

@@ -236,6 +236,134 @@ const CLIENT = kit.req('mdfinal-client.js');
         SH.exec(r4.state, 'ps', 'ping ' + r4.state.wo.lob.fqdn, { key: r4.key });
         t.check(i2(r4) === 2, '(could fail) pinging the LOB name shows the decoy it resolves to: credited');
     }
+    /* Nancy R7 lows (13.22): nslookup, Select-String, Format-Table -Wrap */
+    {
+        const H = 'C:\\Windows\\System32\\drivers\\etc\\hosts';
+        const fresh = (uid) => {
+            const r = W.perfect(uid, [0, 3], { skipP8: true, skipRepair: true });
+            r.state.ledger = r.state.ledger.filter((l, i) => i < r.state.fault.appliedAtLedger || ['hosts-view', 'name-test'].indexOf(l.k) < 0);
+            ANS.save(r.state, 'I1', 'name resolution'); ANS.save(r.state, 'I2', r.key.fault.decoyIp);
+            return r;
+        };
+        const ex = (r, l) => SH.exec(r.state, 'ps', l, { key: r.key }).out;
+        const r5 = fresh('d7-low-ns');
+        const ns = ex(r5, 'nslookup ' + r5.state.wo.lob.fqdn);
+        t.check(ns.indexOf(r5.key.fault.decoyIp) < 0 && i2(r5) === 0, 'nslookup never shows the hosts decoy, so it does not credit it');
+        t.check(ex(r5, 'Select-String -Path ' + H + ' -Pattern zzzz') === '' && i2(r5) === 0, 'Select-String that matched no line credits nothing');
+        const n0 = r5.state.ledger.length;
+        t.check(/empty string/.test(ex(r5, 'Select-String -Path ' + H + ' -Pattern ""')) && r5.state.ledger.length === n0, 'an empty pattern is refused before the file is read (no view logged)');
+        const hit = ex(r5, 'Select-String -Path ' + H + ' -Pattern ' + r5.state.wo.lob.host);
+        t.check(hit.indexOf(H + ':') === 0 && hit.indexOf(r5.key.fault.decoyIp) > 0 && i2(r5) === 2, '(could fail) Select-String -Path shows the decoy line as path:line:text: credited');
+        const r6 = fresh('d7-low-gc');
+        t.check(ex(r6, 'Get-Content ' + H + ' | Select-String zzzz') === '' && i2(r6) === 0, 'Get-Content | Select-String filters (it used to print the whole file)');
+        t.check(ex(r6, 'Get-Content ' + H + ' | sls ' + r6.state.wo.lob.host).split('\n').length === 1 && i2(r6) === 2, '(could fail) Get-Content | sls shows one matching line: credited');
+        t.check(/^Get-Content : Cannot find path/.test(ex(r6, 'Get-Content C:\\nope.txt | Select-String zzzz')), 'a Get-Content error is printed, not filtered away');
+        const w = ex(r6, 'Get-WinEvent -LogName System -MaxEvents 3 | Format-Table -Wrap');
+        t.check(/responded\./.test(w) && !/\.\.\.$/m.test(w), 'Format-Table -Wrap shows the whole Message');
+        t.check(ex(r6, 'Get-WinEvent -LogName System -MaxEvents 3 | ft -AutoSize').split('\n').some((l) => /responded\.$/.test(l)), 'Format-Table -AutoSize fits the Message on one line');
+        t.check(/\.\.\.$/m.test(ex(r6, 'Get-WinEvent -LogName System -MaxEvents 3 | Format-Table')), '(baseline) plain Format-Table still truncates');
+        const evs = ex(r6, 'Get-WinEvent -LogName System -MaxEvents 5 | Select-String 1014').split('\n');
+        t.check(evs.length >= 1 && evs.every((l) => / 1014 /.test(l)), 'Select-String on events keeps only the matching rows');
+        /* the faulting module of V2 is past the table's cut: only -Wrap (or a list) shows it */
+        const r7 = W.perfect('d7-low-wrap', [0, 1], { skipP8: true });
+        r7.state.ledger = r7.state.ledger.filter((l, i) => i < r7.state.fault.appliedAtLedger || l.k !== 'eventvwr');
+        ANS.save(r7.state, 'I1', kit.req('mdfinal-faults.js').CATALOGUE[r7.key.variant].category); ANS.save(r7.state, 'I2', 'mer_shellhook.dll');
+        ex(r7, 'Get-WinEvent -LogName Application');
+        t.check(i2(r7) === 0, 'a truncated table that cuts the module name off does not credit it');
+        ex(r7, 'Get-WinEvent -LogName Application | Format-Table -Wrap');
+        t.check(i2(r7) === 2, '(could fail) the same events with -Wrap show it: credited');
+        const r8 = W.perfect('d7-low-ns-ok', [0, 3], { skipP8: true });
+        const ok = ex(r8, 'nslookup ' + r8.state.wo.lob.fqdn), last = r8.state.ledger[r8.state.ledger.length - 1];
+        t.check(/Address: +\S+$/.test(ok) && ok.indexOf(r8.key.fault.decoyIp) < 0 && last.k === 'name-test' && last.seen.indexOf(r8.key.fault.decoyIp) < 0, 'repaired: nslookup shows the real LOB address and stamps no decoy');
+        /* broken DNS: nslookup times out and stamps nothing at all (Nancy R9: the Meridian-DNS branch) */
+        const r9 = fresh('d7-low-ns-to');
+        const to = ex(r9, 'nslookup ' + r9.state.wo.lob.host), tl = r9.state.ledger[r9.state.ledger.length - 1];
+        t.check(/timed-out/.test(to) && tl.k === 'name-test' && tl.seen === '', 'nslookup on the vendor DNS shows the timeout and stamps nothing');
+
+        /* Select-String switches and forms (Nancy R9 survivors) */
+        const r10 = fresh('d7-low-sls');
+        const host = r10.state.wo.lob.host, hostLow = host.toLowerCase();
+        const lines = (o) => o === '' ? [] : o.split('\n');
+        const all = lines(ex(r10, 'Get-Content ' + H));
+        const notm = lines(ex(r10, 'Get-Content ' + H + ' | Select-String -NotMatch ' + host));
+        t.check(notm.length === all.length - 1 && notm.every((l) => l.toLowerCase().indexOf(hostLow) < 0), '-NotMatch prints every line except the match (no phantom empty line)');
+        /* the hosts file holds the FQDN in lower case only, so its upper-case form matches only without -CaseSensitive */
+        const FQ = r10.state.wo.lob.fqdn.toUpperCase();
+        t.check(FQ !== r10.state.wo.lob.fqdn && lines(ex(r10, 'Get-Content ' + H + ' | Select-String ' + FQ)).length === 1, '(baseline) without -CaseSensitive the upper-case FQDN finds its line');
+        t.check(ex(r10, 'Get-Content ' + H + ' | Select-String -CaseSensitive ' + FQ) === '', '-CaseSensitive: the upper-case FQDN finds nothing');
+        t.check(lines(ex(r10, 'Get-Content ' + H + ' | Select-String -CaseSensitive ' + r10.state.wo.lob.fqdn)).length === 1, '-CaseSensitive: the exact case still matches');
+        const pos = ex(r10, 'Select-String ' + host + ' ' + H), sls = ex(r10, 'sls -Pattern ' + host + ' -Path ' + H), lit = ex(r10, 'Select-String -LiteralPath ' + H + ' -Pattern ' + host);
+        t.check(pos.indexOf(H + ':') === 0 && pos === sls && sls === lit, 'Select-String <pattern> <file>, sls and -LiteralPath give the same path:line:text');
+        t.check(/literal text/.test(ex(r10, 'Get-Content ' + H + ' | Select-String "' + host + '|zz"')), 'a regex-looking pattern that matches nothing says the match is literal');
+        t.check(ex(r10, 'Get-Content ' + H + ' | Select-String zzzz') === '', 'a plain pattern that matches nothing prints nothing');
+        t.check(/^Get-Process : /.test(ex(r10, 'Get-Process -Name zzzz | Select-String qqqq')), 'another producer\'s error is printed, not filtered away');
+        /* F3: the BitLocker recovery-key file on TECH-USB ends in a line break; no phantom empty line */
+        const keyFile = 'F:\\' + r10.state.host.usb.F.files[0].name;
+        const kl = lines(ex(r10, 'Get-Content "' + keyFile + '" | Select-String -NotMatch zzzz'));
+        const kp = lines(ex(r10, 'Select-String -Path "' + keyFile + '" -Pattern zzzz -NotMatch'));
+        t.check(r10.state.host.usb.F.files[0].text.slice(-1) === '\n' && kl.length >= 1 && kl[kl.length - 1] !== '' && !/:\d+:$/.test(kp[kp.length - 1]), 'a file ending in a line break gives no empty last match (Nancy R9 F3)');
+        const svc = lines(ex(r10, 'Get-Service | Select-Object -ExpandProperty Name | Select-String s'));
+        t.check(svc.length >= 1 && svc.every((l) => l.toLowerCase().indexOf('s') >= 0), 'values piped to Select-String are filtered one per line');
+        /* F2: a student file whose text looks like an error is still filtered */
+        SH.exec(r10.state, 'ps', 'Set-Content F:\\note.txt "Note : first"', { key: r10.key });
+        t.check(ex(r10, 'Get-Content F:\\note.txt | Select-String zzzz') === '', 'a file whose first line reads "Note : x" is filtered, not printed (Nancy R9 F2)');
+
+        /* Mallory R9 F1: a stage that filters every row away leaves nothing credited */
+        const r11 = W.perfect('d7-low-gp', [0, 2], { skipP8: true, skipRepair: true });
+        r11.state.ledger = r11.state.ledger.filter((l, i) => i < r11.state.fault.appliedAtLedger || ['taskmgr-view', 'get-process'].indexOf(l.k) < 0);
+        ANS.save(r11.state, 'I1', 'runaway process'); ANS.save(r11.state, 'I2', 'msynchlp');
+        ex(r11, 'Get-Process | Select-String zzzz'); ex(r11, 'Get-Process | Measure-Object'); ex(r11, 'Get-Process | Where-Object Name -eq zzzz');
+        t.check(i2(r11) === 0, 'Get-Process filtered to nothing (Select-String, Measure-Object, Where-Object) credits nothing (Mallory R9 F1)');
+        /* Mallory R9 F1b: a typed property name comes back as a header, or as a list label */
+        ex(r11, 'Get-Process | Select-Object msynchlp'); ex(r11, 'Get-Process | Select-Object msynchlp,Id | Format-Table -Wrap'); ex(r11, 'Get-Process | Select-Object msynchlp | Format-List');
+        t.check(i2(r11) === 0, 'a typed property name echoed as a header or list label credits nothing (Mallory R9 F1b)');
+        ['Get-Process | Select-Object "x : msynchlp" | Format-List', 'Get-Process | Select-Object "x : mersync : msynchlp",Id | Format-List',
+         'Get-Process | Select-Object "Id : msynchlp" | fl', 'Get-Process | Select-Object "x : msynchlp" | Format-List -Property "x : msynchlp"'].forEach((l) => ex(r11, l));
+        t.check(i2(r11) === 0, 'a typed property name holding " : " in a list label credits nothing (Mallory R9 F1c)');
+        ex(r11, 'Get-Process | Format-Table Id'); ex(r11, 'Get-Process | Format-List Id');
+        t.check(i2(r11) === 0, 'Format-Table/Format-List narrowed to Id hide the names: nothing credited');
+        const nm = ex(r11, 'Get-Process | Select-Object Name,CPU');
+        t.check(/msynchlp/.test(nm) && i2(r11) === 2, '(could fail) Select-Object Name, PowerShell\'s alias of ProcessName, shows the names: credited');
+        const r11b = W.perfect('d7-low-gp2', [0, 2], { skipP8: true, skipRepair: true });
+        r11b.state.ledger = r11b.state.ledger.filter((l, i) => i < r11b.state.fault.appliedAtLedger || ['taskmgr-view', 'get-process'].indexOf(l.k) < 0);
+        ANS.save(r11b.state, 'I1', 'runaway process'); ANS.save(r11b.state, 'I2', 'msynchlp');
+        ex(r11b, 'Get-Process | Format-List');
+        t.check(i2(r11b) === 2, '(could fail) Get-Process | Format-List shows the names as values: credited');
+        const r11c = W.perfect('d7-low-gp3', [0, 2], { skipP8: true, skipRepair: true });
+        r11c.state.ledger = r11c.state.ledger.filter((l, i) => i < r11c.state.fault.appliedAtLedger || ['taskmgr-view', 'get-process'].indexOf(l.k) < 0);
+        ANS.save(r11c.state, 'I1', 'runaway process'); ANS.save(r11c.state, 'I2', 'msynchlp');
+        const fb = ex(r11c, 'Get-Process | Format-Table nosuchcolumn');
+        t.check(/msynchlp/.test(fb) && i2(r11c) === 2, '(could fail) Format-Table with an unknown property falls back to the full view: credited');
+        ex(r11, 'Get-Process | Select-String msynch');
+        t.check(i2(r11) === 2, '(could fail) Get-Process | Select-String that keeps the row: credited');
+        const r12 = fresh('d7-low-tnc');
+        ex(r12, 'Test-NetConnection ' + r12.state.wo.lob.fqdn + ' | Select-String zzzz');
+        t.check(i2(r12) === 0, 'Test-NetConnection filtered to nothing credits no decoy (Mallory R9 F1)');
+        ex(r12, 'Test-NetConnection ' + r12.state.wo.lob.fqdn + ' | Select-Object ' + r12.key.fault.decoyIp);
+        t.check(i2(r12) === 0, 'a typed decoy IP echoed as a column header credits nothing (Mallory R9 F1b)');
+        ex(r12, 'Test-NetConnection ' + r12.state.wo.lob.fqdn);
+        t.check(i2(r12) === 2, '(could fail) Test-NetConnection that shows the decoy: credited');
+        /* the failed-boot stamp is NOT cut to the reply: a console restart from Safe Mode returns no
+         * text, and the stop screen is what the page shows */
+        const r13 = W.perfect('d7-low-7b', [0, 0], { skipP8: true, skipRepair: true });
+        r13.state.ledger = r13.state.ledger.filter((l, i) => i < r13.state.fault.appliedAtLedger || l.k !== 'winre-view');
+        ANS.save(r13.state, 'I1', kit.req('mdfinal-faults.js').CATALOGUE[r13.key.variant].category); ANS.save(r13.state, 'I2', '0x0000007B');
+        t.check(i2(r13) === 0, '(baseline) V1 stop code with no stop screen seen: 0');
+        GUI.act(r13.state, 'winre', 'startup-settings', { option: 4 }, { key: r13.key });
+        const rs = ex(r13, 'shutdown /r');
+        t.check(rs === '' && r13.state.screen === 'winre' && i2(r13) === 2, 'a console restart into the stop screen credits the stop code though the reply is empty');
+
+        /* wrap edges, on the renderer itself (Nancy R9) */
+        const C = kit.req('mdfinal-cmdlets.js');
+        const body = (rows, o) => C.table(rows, ['M'], o).split('\n').slice(2);
+        t.check(JSON.stringify(body([{ M: 'x'.repeat(100) }], { wrap: true })) === JSON.stringify(['x'.repeat(40), 'x'.repeat(40), 'x'.repeat(20)]), 'a 100-character word wraps as 40, 40, 20');
+        /* a column is as wide as its longest cell up to 40, so wrapping at a space starts past 40 */
+        const a19 = 'a'.repeat(19), a20 = 'a'.repeat(20), b20 = 'b'.repeat(20);
+        t.check(JSON.stringify(body([{ M: a19 + ' ' + b20 }], { wrap: true })) === JSON.stringify([a19 + ' ' + b20]), 'a 40-character cell fills its column exactly and stays on one line');
+        t.check(JSON.stringify(body([{ M: a20 + ' ' + b20 }], { wrap: true })) === JSON.stringify([a20, b20]), 'a 41-character cell moves its last word to the next line');
+        t.check(JSON.stringify(body([{ M: 'first line\nsecond' }], { wrap: true })) === JSON.stringify(['first line', 'second']), 'a multi-line cell wraps at its own line breaks');
+        t.check(C.table([{ M: 'a'.repeat(30) + '\n' + 'b'.repeat(30), N: 'z' }], ['M', 'N'], { wrap: true }).split('\n')[2] === 'a'.repeat(30) + ' z', 'a multi-line cell is as wide as its longest line, not its total length');
+    }
     /* a value shown only by an unledgered window keeps the general gate */
     const z = W.perfect('d7-route-v3', [0, 2], { skipP8: true });
     ANS.save(z.state, 'I1', 'runaway process'); ANS.save(z.state, 'I2', 'MerSync');

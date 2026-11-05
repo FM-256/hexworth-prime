@@ -25,6 +25,7 @@
     var OS = require('./mdfinal-os.js');
     var REG = require('./mdfinal-registry.js');
     var M = require('./mdfinal-match.js');
+    var EVID = require('./mdfinal-evidence.js');
     var LIM = require('./mdfinal-limits.js');
 
     var C = LIM.LIMITS.command;
@@ -52,7 +53,8 @@
     var SWITCHES = ['allusers', 'recurse', 'force', 'descending', 'online', 'confirm', 'whatif', 'passthru', 'norestart', 'restart',
                     'verbose', 'skiphardwaretest', 'usedspaceonly', 'file', 'directory', 'hidden', 'asjob', 'unique', 'caseSensitive'.toLowerCase(),
                     'simplematch', 'quiet', 'detailed', 'recoverypasswordprotector', 'tpmprotector',
-                    'nopassword', 'usemaximumsize', 'assigndriveletter', 'accountneverexpires', 'wait'];
+                    'nopassword', 'usemaximumsize', 'assigndriveletter', 'accountneverexpires', 'wait',
+                    'wrap', 'autosize', 'notmatch'];
 
     function args(raw) {
         var tokens = joinCommas(raw);
@@ -102,16 +104,83 @@
 
     function cell(v) { return v === null || v === undefined ? '' : typeof v === 'boolean' ? (v ? 'True' : 'False') : String(v); }
 
-    function table(rows, props) {
+    /* A table. `opt.autosize` (Format-Table -AutoSize) widens columns to their content, up to 120;
+     * `opt.wrap` (-Wrap) wraps a long cell onto continuation lines instead of cutting it with '...'
+     * (Nancy R7 low: an event Message was cut at 37 characters with no way to see the rest in a table). */
+    function table(rows, props, opt) {
         if (!rows.length) { return ''; }
+        opt = opt || {};
         var w = props.map(function (p) {
             /* columns cap at 40 characters, except a file hash, which PowerShell prints whole (64) */
-            return Math.min(p === 'Hash' ? 64 : 40, Math.max(p.length, rows.reduce(function (m, r) { return Math.max(m, cell(r[p]).length); }, 0)));
+            var cap = p === 'Hash' ? 64 : opt.autosize ? 120 : 40;
+            return Math.min(cap, Math.max(p.length, rows.reduce(function (m, r) { return Math.max(m, cellWidth(cell(r[p]))); }, 0)));
         });
         var pad = function (s, n) { s = String(s); if (s.length > n) { return s.slice(0, n - 3) + '...'; } while (s.length < n) { s += ' '; } return s; };
         var lines = [props.map(function (p, i) { return pad(p, w[i]); }).join(' '), props.map(function (p, i) { return pad('-'.repeat(p.length), w[i]); }).join(' ')];
-        rows.forEach(function (r) { lines.push(props.map(function (p, i) { return pad(cell(r[p]), w[i]); }).join(' ')); });
+        rows.forEach(function (r) {
+            if (!opt.wrap) { lines.push(props.map(function (p, i) { return pad(cell(r[p]), w[i]); }).join(' ')); return; }
+            var cells = props.map(function (p, i) { return wrapCell(cell(r[p]), w[i]); });
+            var n = cells.reduce(function (m, c) { return Math.max(m, c.length); }, 1);
+            for (var k = 0; k < n; k++) { lines.push(cells.map(function (c, i) { return pad(c[k] || '', w[i]); }).join(' ')); }
+        });
         return lines.map(function (l) { return l.trimEnd(); }).join('\n');
+    }
+    /* The width a cell needs: its longest line (a Message can hold line breaks). */
+    function cellWidth(s) { return s.split(/\r?\n/).reduce(function (m, l) { return Math.max(m, l.length); }, 0); }
+    /* One cell's lines at width n: at its own line breaks, then at spaces, and a word longer than n is
+     * split, as -Wrap does. */
+    function wrapCell(s, n) {
+        var out = [];
+        s.split(/\r?\n/).forEach(function (para) {
+            var line = '';
+            para.split(' ').forEach(function (word) {
+                while (word.length > n) {
+                    if (line) { out.push(line); line = ''; }
+                    out.push(word.slice(0, n)); word = word.slice(n);
+                }
+                if (!line) { line = word; } else if (line.length + 1 + word.length <= n) { line += ' ' + word; } else { out.push(line); line = word; }
+            });
+            out.push(line);
+        });
+        return out;
+    }
+
+    /* The properties a Format-Table / Format-List stage displays: the named ones, else the view
+     * (an unknown name falls back to the view); 'wild' is refused (R4). Shared with dataText. */
+    function fmtProps(v, a) {
+        var raw = has(a, 'property') ? a.property : a._.length ? a._.join(',') : null;
+        var props = raw === null ? v.view : propList(v, raw);
+        if (props === 'wild') { return 'wild'; }
+        return !props || props.bad ? v.view : props;
+    }
+
+    /* Select-String's test on lines of text: the pattern is a LITERAL (-SimpleMatch semantics for
+     * every call, spec R4: no student regex), case-insensitive unless -CaseSensitive, inverted by
+     * -NotMatch. Returns the matching lines, LIMIT_MSG over budget, or an error string. */
+    /* Text as Get-Content gives it: one entry per line, without the empty one after a final line
+     * break (Nancy R9 F3: -NotMatch printed a phantom empty line). */
+    function textLines(s) { var l = String(s).split(/\r?\n/); if (l.length > 1 && l[l.length - 1] === '') { l.pop(); } return l; }
+    /* What a search that found nothing prints when its pattern looks like a regular expression: the
+     * console matches literally (R4), and a student with real habits should be told rather than get
+     * silence (Nancy R9 F1). Empty otherwise, as PowerShell prints nothing. */
+    function literalNote(a) {
+        var pat = String(has(a, 'pattern') ? a.pattern : a._[0]);
+        return /[|^$\\[\]()+?{}*]/.test(pat) ? 'Select-String matches the pattern as literal text in this exam console; regular expressions and wildcards are not supported.' : '';
+    }
+    function selectLines(lines, a, budget, cmd) {
+        var pat = has(a, 'pattern') ? a.pattern : a._[0];
+        if (pat === undefined || pat === true) { return missingArg(cmd || 'Select-String', 'Pattern'); }
+        pat = String(pat);
+        /* an empty needle matches every line; PowerShell refuses it, and so does this */
+        if (!pat.length) { return (cmd || 'Select-String') + " : Cannot bind argument to parameter 'Pattern' because it is an empty string."; }
+        var out = [];
+        for (var i = 0; i < lines.length; i++) {
+            var hit;
+            if (has(a, 'casesensitive')) { if (!M.charge(budget, lines[i].length + pat.length)) { return LIMIT_MSG; } hit = lines[i].indexOf(pat) >= 0; }
+            else { var m = M.contains(lines[i], pat, budget); if (!m.ok) { return LIMIT_MSG; } hit = m.match; }
+            if (has(a, 'notmatch') ? !hit : hit) { out.push(i); }
+        }
+        return out;
     }
 
     function list(rows, props) {
@@ -221,24 +290,33 @@
         },
         'format-table': function (v, a) {
             if (v.kind !== 'objects') { return render(v); }
-            var raw = has(a, 'property') ? a.property : a._.length ? a._.join(',') : null;
-            var props = raw === null ? v.view : propList(v, raw);
+            var props = fmtProps(v, a);
             if (props === 'wild') { return DENY_MSG; }
-            if (!props || props.bad) { return table(v.rows, v.view); }
-            return table(v.rows, props);
+            return table(v.rows, props, { wrap: has(a, 'wrap'), autosize: has(a, 'autosize') });
         },
         'format-list': function (v, a) {
             if (v.kind !== 'objects') { return render(v); }
-            var raw = has(a, 'property') ? a.property : a._.length ? a._.join(',') : null;
-            var props = raw === null ? v.view : propList(v, raw);
+            var props = fmtProps(v, a);
             if (props === 'wild') { return DENY_MSG; }
-            if (!props || props.bad) { return list(v.rows, v.view); }
             return list(v.rows, props);
+        },
+        /* Select-String in a pipeline: text arrives as lines, values one per line, objects as their
+         * table rows (PowerShell matches an object's string form; the row is the readable one). */
+        'select-string': function (v, a, budget) {
+            var lines = typeof v === 'string' ? textLines(v) : v.kind === 'values' ? v.values.map(cell)
+                : v.kind === 'objects' ? (v.rows.length ? table(v.rows, v.view).split('\n').slice(2) : []) : [];
+            var hits = selectLines(lines, a, budget);
+            if (typeof hits === 'string') { return hits; }
+            if (!hits.length) { return literalNote(a); }
+            return { kind: 'values', values: hits.map(function (i) { return lines[i]; }) };
         },
         'measure-object': function (v) { return { kind: 'count', count: v.kind === 'objects' ? v.rows.length : v.kind === 'values' ? v.values.length : 0 }; }
     };
     STAGES.select = STAGES['select-object']; STAGES.where = STAGES['where-object']; STAGES.sort = STAGES['sort-object'];
-    STAGES.ft = STAGES['format-table']; STAGES.fl = STAGES['format-list']; STAGES.measure = STAGES['measure-object'];
+    STAGES.ft = STAGES['format-table']; STAGES.fl = STAGES['format-list']; STAGES.measure = STAGES['measure-object']; STAGES.sls = STAGES['select-string'];
+
+    /* Get-Content and its aliases: the producers whose text is file content, not an error. */
+    var GET_CONTENT = ['get-content', 'gc', 'type', 'cat'];
 
     /* Stages and cmdlets that exist in PowerShell but dump everything; refused (R4). */
     var DUMPERS = ['get-member', 'gm', 'convertto-json', 'export-clixml', 'convertto-xml', 'export-csv', 'convertto-csv', 'out-file', 'out-string', 'tee-object', 'format-custom', 'fc'];
@@ -686,6 +764,7 @@
 
     /* stages: token arrays. extra: legacy table from the shell (slmgr, winver, ...). */
     function run(state, stages, budget, extra, ctx) {
+        var ledger0 = state.ledger ? state.ledger.length : 0;
         var first = stages[0];
         var cmd = first[0].toLowerCase();
         for (var s = 0; s < stages.length; s++) {
@@ -730,17 +809,43 @@
             return typeof r === 'string' ? { out: r } : r;
         }
         if (!Object.prototype.hasOwnProperty.call(PRODUCERS, cmd)) { return { out: notRecognised(first[0]) }; }
-        var v = PRODUCERS[cmd](state, args(first), ctx || {});
+        var v = PRODUCERS[cmd](state, args(first), ctx || {}), cells = null;
         for (var i = 1; i < stages.length; i++) {
-            if (typeof v === 'string') { return { out: v }; }
             var st = stages[i][0].toLowerCase();
+            /* text (Get-Content) reaches only Select-String; any other stage, or an error a producer
+             * returned, still prints as is. Get-Content's text is the student's own file content, so
+             * for it only its one error counts (Nancy R9 F2: a file whose first line read "Note : x"
+             * was printed unfiltered); other producers return text only as an error. */
+            var isErr = typeof v === 'string' && (GET_CONTENT.indexOf(cmd) >= 0 ? v.indexOf("Get-Content : Cannot find path '") === 0 : /^[A-Za-z][A-Za-z-]* : /.test(v));
+            if (typeof v === 'string' && ((st !== 'select-string' && st !== 'sls') || isErr)) { return { out: v }; }
             if (Object.prototype.hasOwnProperty.call(MUTATORS, st) || Object.prototype.hasOwnProperty.call(LEGACY, st)) { return { out: DENY_MSG }; }
             if (!Object.prototype.hasOwnProperty.call(STAGES, st)) { return { out: notRecognised(stages[i][0]) }; }
             if ((st === 'format-table' || st === 'ft' || st === 'format-list' || st === 'fl') && i !== stages.length - 1) { return { out: DENY_MSG }; }
-            v = STAGES[st](v, args(stages[i]), budget);
+            var sa = args(stages[i]);
+            /* what a Format stage displays is taken from the objects it formats, before they become text */
+            if (v && v.kind === 'objects' && FORMATS.indexOf(st) >= 0) {
+                var fp = fmtProps(v, sa);
+                cells = fp === 'wild' ? '' : cellText(v.rows, fp);
+            }
+            v = STAGES[st](v, sa, budget);
             if (budget.spent) { return { out: LIMIT_MSG }; }
         }
+        if (cells === null) {
+            cells = typeof v === 'string' ? v : v.kind === 'values' ? v.values.map(cell).join('\n')
+                : v.kind === 'objects' ? cellText(v.rows, v.view) : '';
+        }
+        EVID.cut(state, ledger0, cells);
         return { out: render(v) };
+    }
+
+    var FORMATS = ['format-table', 'ft', 'format-list', 'fl'];
+    /* The DATA a pipeline displayed, built from its objects and never parsed back out of the text: one
+     * line per row of the displayed properties' values. Property names never enter it, so a typed
+     * name echoed as a header or a list label shows nothing (Mallory R9 F1b, F1c). A table's
+     * truncation of long cells is not modelled: the values cut against it (process names, IPv4
+     * addresses) are whole cells far shorter than the 40-character column. */
+    function cellText(rows, props) {
+        return rows.map(function (r) { return props.map(function (p) { return cell(r[p]); }).join(' '); }).join('\n');
     }
 
     /* What PowerShell prints for -WhatIf: the operation and its target, and nothing happens. */
@@ -780,7 +885,7 @@
 
     /* P4-P7 commands register into the same tables, with the same helpers (no require cycle). */
     var INSTALL_API = { PRODUCERS: PRODUCERS, MUTATORS: MUTATORS, LEGACY: LEGACY, CONSUMERS: CONSUMERS, objs: objs, has: has,
-        missingArg: missingArg, bool: bool, LIMIT_MSG: LIMIT_MSG, DENY_MSG: DENY_MSG };
+        missingArg: missingArg, bool: bool, LIMIT_MSG: LIMIT_MSG, DENY_MSG: DENY_MSG, selectLines: selectLines, textLines: textLines, literalNote: literalNote };
     require('./mdfinal-cmdlets-d4.js').install(INSTALL_API);
     require('./mdfinal-cmdlets-d5.js').install(INSTALL_API);
 

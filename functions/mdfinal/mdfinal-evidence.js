@@ -16,6 +16,11 @@
     /* The ledger kinds that display evidence (the routes in mdfinal-faults.js evidenceRoutes). */
     var ROUTE_KINDS = ['eventvwr', 'pnputil-enum', 'update-history', 'hotfix-list', 'taskmgr-view', 'get-process', 'hosts-view', 'name-test', 'winre-view'];
 
+    /* The data-stamped routes a console pipeline can filter after the stamp. The failed-boot
+     * winre-view stamp (mdfinal-pc.js) is not one: a handover boots internally, so its stop screen is
+     * shown on the page without being in any reply text, and its data stamp stands. */
+    var FILTERABLE = ['get-process', 'name-test'];
+
     /* Event ids are matched as whole numbers, so 1001 inside KB5091001 does not count. */
     var EVENT_IDS = ['41', '1000', '1001', '1014', '5719', '1129'];
     var WORDS = ['mbafilt', 'msynchlp', 'mer_shellhook'];
@@ -59,12 +64,35 @@
         for (var i = before; i < state.ledger.length; i++) {
             var e = state.ledger[i];
             if (ROUTE_KINDS.indexOf(e.k) < 0) { continue; }
-            /* a route that stamped from its own data keeps it (Get-Process: text can echo input) */
-            if (typeof e.seen === 'string') { continue; }
             if (seen === null) { seen = shown(text, state.fault).join(',').slice(0, 160); }
+            /* A route that stamped from its own data (Get-Process, the name tests) keeps only what the
+             * final reply ALSO shows: the data guards against a typed echo (Mallory R7, R8), the text
+             * against a pipeline stage that filtered every row away (Mallory R9 F1: `Get-Process |
+             * Measure-Object` credited msynchlp with nothing on screen). */
+            if (typeof e.seen === 'string' && FILTERABLE.indexOf(e.k) < 0) { continue; }
+            if (typeof e.seen === 'string') { e.seen = keepShown(e.seen, seen); continue; }
             e.seen = seen;
         }
     }
+    /* A data stamp cut to the values in `seen` (a comma list from shown()). */
+    function keepShown(data, seen) {
+        var vis = seen.split(',');
+        return data.split(',').filter(function (x) { return x.length > 0 && vis.indexOf(x) >= 0; }).join(',');
+    }
+    /* Cuts the data stamps written since `before` to what `cells` shows: the console pipeline passes
+     * its displayed DATA, without headers or property names, because a typed property name comes
+     * back as a column header (Mallory R9 F1b: `Get-Process | Select-Object msynchlp` printed the
+     * word over blank rows and was credited). stamp() then cuts again by the whole reply. */
+    function cut(state, before, cells) {
+        if (!state || !state.ledger || !state.fault) { return; }
+        var seen = null;
+        for (var i = before; i < state.ledger.length; i++) {
+            var e = state.ledger[i];
+            if (FILTERABLE.indexOf(e.k) < 0 || typeof e.seen !== 'string') { continue; }
+            if (seen === null) { seen = shown(cells, state.fault).join(','); }
+            e.seen = keepShown(e.seen, seen);
+        }
+    }
 
-    module.exports = { ROUTE_KINDS: ROUTE_KINDS, shown: shown, stamp: stamp };
+    module.exports = { ROUTE_KINDS: ROUTE_KINDS, shown: shown, stamp: stamp, cut: cut };
 })();
