@@ -340,7 +340,7 @@ const FUZZ = ['Get-VM', 'Get-VMHardDiskDrive -VMName MER-WS', 'pnputil /enum-dri
             '5.1:d-space': () => ['Create D: in all of the free space on the OS disk'], '5.1:d-format': (w) => ['NTFS, label ' + w.disks.dLabel],
             '5.1:pool': (w) => ['MER-POOL1 and MER-POOL2 (the two blank ' + w.disks.poolGB + ' GB disks) into one storage pool'], '5.1:resiliency': (w, k) => ['create one ' + k.resiliency + ' storage space', w.disks.resiliencyProse],
             '5.1:spaces-volume': (w) => ['letter ' + w.disks.spacesLetter + ':, NTFS, label ' + w.disks.spacesLabel],
-            '5.2:method': () => ['XTS-AES 256'], '5.2:protection': () => ['Encrypt C: with BitLocker'], '5.2:tpm': () => ['unlocked by the TPM'], '5.2:rp': () => ['with a recovery password'],
+            '5.2:method': () => ['XTS-AES 256', 'Choose drive encryption method and cipher strength', 'Before you turn BitLocker on'], '5.2:protection': () => ['Encrypt C: with BitLocker'], '5.2:tpm': () => ['unlocked by the TPM'], '5.2:rp': () => ['with a recovery password'],
             '5.2:usb-backup': () => ['Save the BitLocker recovery key to TECH-USB'],
             '5.3:inheritance': (w) => ['Create the folder ' + w.confidentialPath + '. On it: it no longer inherits permissions'], '5.3:no-users': () => ['Users and Authenticated Users have no access'],
             '5.3:group-rx': (w) => [w.group + ' can read and run files'],

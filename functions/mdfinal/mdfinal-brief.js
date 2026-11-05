@@ -119,7 +119,8 @@
         add('P5', 'Create D: in all of the free space on the OS disk: NTFS, label ' + d.dLabel + '.');
         add('P5', 'Put the blank pool disks MER-POOL1 and MER-POOL2 (the two blank ' + d.poolGB + ' GB disks) into one storage pool named MeridianPool and create one ' + (spec.resiliency || '') + (spec.resiliency ? ' ' : '') + 'storage space on it named MeridianSpace. ' + d.resiliencyProse + ' Give its volume the letter ' + d.spacesLetter +
             ':, NTFS, label ' + d.spacesLabel + '.');
-        add('P5', 'Encrypt C: with BitLocker, XTS-AES 256, unlocked by the TPM, with a recovery password.');
+        /* the method comes from policy (mdfinal-bitlocker.js turn-on), so the brief says to set it first */
+        add('P5', 'Encrypt C: with BitLocker, XTS-AES 256, unlocked by the TPM, with a recovery password. Before you turn BitLocker on, set the Group Policy "Choose drive encryption method and cipher strength" (Computer Configuration > Administrative Templates > Windows Components > BitLocker Drive Encryption) to XTS-AES 256-bit for operating system drives; BitLocker takes its method from that policy.');
         add('P5', 'Create the folder ' + wo.confidentialPath + '. On it: it no longer inherits permissions; Users and Authenticated Users have no access; ' + wo.group +
             ' can read and run files; Administrators and SYSTEM keep full control.');
         add('P5', 'Update the Defender signatures. Exclude ' + wo.defenderExclusion + ' and nothing else. Real-time protection stays on.');
