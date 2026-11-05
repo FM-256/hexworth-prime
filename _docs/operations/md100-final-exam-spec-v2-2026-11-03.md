@@ -168,7 +168,7 @@ match /mdfinal_control/{examId}              { allow read, write: if false; }
   - `?exam=rehearsal` maps to `md100-final-rehearsal`. The server allowlist decides; the page merely passes the id.
 - **Hub:**
   - Add a new `checkpoint-section` "Final Exam" after the M11 card (~:676).
-  - It ships as a non-clickable `div.checkpoint-card.is-upcoming` with `data-module="forge-md100-final"`.
+  - It ships as a non-clickable `div.checkpoint-card.is-upcoming` with `data-module="forge-md100-final"`. **Superseded 2026-11-05 (operator: "I do not want it grayed out"):** commit 377d23ec7 makes it a live link and the catalog `available` now; the server window still gates start. Do not re-grey it.
   - Add `'forge-md100-final'` to `MD100_REGISTRATIONS` (:881).
   - The 45-item counter is unchanged, with a comment saying the grade lives server-side.
 - **Catalog:** `ContentCatalog.js`, after :3003: `{house:'forge', id:'forge-md100-final', components:['exam'], status:'coming-soon', href:'md-100/exams/md100-final.exam.html', category:'md-100', tags:['final','exam']}`.
@@ -671,7 +671,7 @@ Tests: an adversarial filler session hits each cap; the maximum serialised size 
 | D11 | Sat 11-14 | **Load check:** `_tools/mdfinal/mdfinal-load.js` runs 30 concurrent synthetic sittings, about 90 actions each with think time compressed 10×, against the Functions and Firestore emulators (App Check off). Pass: 0 lost ledger entries; `aborted` rate under 1% and always recovered by the page's single retry; p95 latency under 1.5 s; max document under 700 KB. Chris QC with evidence (qc output, negatives matrix, render screenshots, load report). **Deploy** with operator authorisation; see section 8.1. | Chris PASS, operator go |
 | D12 | Sun 11-15 | **Operator dry run in production** on `md100-final-rehearsal` (admin), timed. Fix findings, redeploy the affected callables only. Staff reset of the rehearsal sitting (archived). | operator |
 | D13 | Mon 11-16 | **Non-author human sitting** in production on the rehearsal id (allowUids, a different seed), full 150 min, scored and debriefed. Production concurrency smoke: 3 staff accounts on the rehearsal id at once. Fix findings. Nancy final, Chris re-PASS. | Nancy, Chris |
-| D14 | Tue 11-17 | In class: brief walkthrough (the rules, handover and P7 dependency, TECH-USB, powercfg note), with no lab access. Instructor assigns `forge-md100-final`. Verify the class exists in `classes/*` with a staff `handlerUid` and every student as a member (results page "classes" view). Hosting deploy: flip the card to a link and the catalog to available. Start stays gated by the window and the arm flag. | operator go |
+| D14 | Tue 11-17 | In class: brief walkthrough (the rules, handover and P7 dependency, TECH-USB, powercfg note), with no lab access. Instructor assigns `forge-md100-final`. Verify the class exists in `classes/*` with a staff `handlerUid` and every student as a member (results page "classes" view). The card and catalog flip was done early (377d23ec7, 2026-11-05); assignment and roster checks remain. Start stays gated by the window and the arm flag. | operator go |
 | D15 | Wed 11-18 | Buffer and freeze. Pre-sitting checklist: window constants correct; `armed=false`; rehearsal sittings reset; real-id allowUids empty; secret check passed (a dry run started); results page loads for the class; runbook printed. | |
 | **D16** | **Thu 11-19** | **Sitting** (runbook, section 8.2). | |
 
