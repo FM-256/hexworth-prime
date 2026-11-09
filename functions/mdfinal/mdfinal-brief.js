@@ -41,7 +41,7 @@
             /* retakes (operator, 2026-11-09): the latest attempt the student submits is the grade */
             'After you submit, you may retake the exam on a new lab (a different work order and fault) with a fresh 150-minute clock' +
                 (EXAMS.windowFor(examId) ? ', until the exam closes on Thursday, November 19 at 6:30 pm Eastern' : '') +
-                '. The latest attempt you submit is your grade, even if it is lower. A retake you leave unfinished does not replace your grade. Each attempt has its own build restarts.',
+                '. The latest attempt you submit is your grade, even if it is lower. A retake you do not submit yourself (the clock runs out first) does not replace your grade. Each attempt has its own build restarts.',
             'There is no Dr. Hex, no course content and no hint system during the exam. Nothing on screen tells you whether a step is right.',
             'The lab host is Hyper-V. The fabric attaches the MER-ARCHIVE, MER-POOL1, MER-POOL2 and TECH-USB disks to the VM you create. TECH-USB appears as F: inside Windows and in the host\'s Lab Files panel. After setup, C:\\LabFiles on the PC holds the installation packages.',
             'Windows 11 version 24H2 (build 26100) is pinned for this exam. KB numbers are lab values.',

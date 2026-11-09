@@ -42,8 +42,10 @@ Every action is on the results page. The server enforces who may do what; the pa
    - **Staff never restart to give a second attempt.** Students retake on their own (below).
    - **Student retakes (from 2026-11-09).** After submitting, a student may click **Retake the exam**: a new lab with a fresh 150-minute clock and fresh build restarts, while starts are open (armed and before 18:30 on 11-19, or allowlisted).
      - The grade is the latest attempt the student **submits**. A retake that runs out its clock unsubmitted (auto-submitted by a sweep) does **not** replace the earlier grade.
-     - While a retake runs, the results page and CSV show the standing attempt, flagged `retakeInProgress`; after an abandoned one, `retakeAbandoned`. `retake:N` counts retakes.
+     - While a retake runs, the results page and CSV show the standing attempt, flagged `attemptInProgress`; after an abandoned one, `attemptAbandoned`. `retake:N` counts retakes.
      - Disarming the window stops new starts and retakes together.
+     - A staff **Restart on a new lab** voids the attempt for a platform fault: it never stands as the grade. A grade from an attempt before it (if any) stands until the student submits the new one.
+     - Flag `standing grade not in gradebook` means the gradebook write for the standing attempt failed; it is written once the student submits a later attempt, and the CSV is the grade of record meanwhile.
    - **Platform fault after handover or submit:** **Restart on a new lab.** It deals a different work order and fault with a fresh 150-minute clock (spec 13.19 item 1), because the student has already seen the old fault and its answers.
      - Use it only for a platform fault, with a fault code and evidence.
      - The new sitting's grade supersedes the old one; both attempts stay archived.

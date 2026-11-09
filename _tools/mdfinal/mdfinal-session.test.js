@@ -531,9 +531,9 @@ async function rejects(p, code, label) {
         const mid = EXAM.fromDocument(await g.st.get(g.sid));
         t.check(mid.lineage.selfResets === 0 && mid.lineage.retakes === 1, 'a retake gives back the build restarts');
         const midRec = EXAM.recordOf(mid);
-        t.check(midRec && midRec.submittedAt === first.submittedAt && midRec.attempt === first.attempt && midRec.standingOnly === 'retakeInProgress',
+        t.check(midRec && midRec.submittedAt === first.submittedAt && midRec.attempt === first.attempt && midRec.standingOnly === 'attemptInProgress',
             'while the retake runs, the submitted attempt stands');
-        t.check(/retakeInProgress/.test(EXAM.resultsCsv([mid])) && EXAM.totalsCsv([mid]).split('\n').length === 2, 'mid-retake the student stays in both CSVs, flagged');
+        t.check(/attemptInProgress/.test(EXAM.resultsCsv([mid])) && EXAM.totalsCsv([mid]).split('\n').length === 2, 'mid-retake the student stays in both CSVs, flagged');
         t.check(EXAM.instructorView(mid, {}).entry && EXAM.instructorView(mid, {}).entry.satAt === new Date(first.submittedAt).toISOString(), 'mid-retake the staff view carries the standing entry');
         /* a second click from a stale tab must not spend a build restart */
         await rejects(EXAM.resetSession(g.st, Object.assign({ retake: true }, me), g.o), 'failed-precondition', 'a retake request on a running retake is refused, not turned into a build restart');
@@ -543,10 +543,14 @@ async function rejects(p, code, label) {
         await EXAM.sweepExpired(g.st, [g.sid], g.o);
         const gone = EXAM.fromDocument(await g.st.get(g.sid));
         const rec = EXAM.recordOf(gone);
-        t.check(gone.submittedAt && gone.autoSubmitted && rec.submittedAt === first.submittedAt && rec.standingOnly === 'retakeAbandoned',
+        t.check(gone.submittedAt && gone.autoSubmitted && rec.submittedAt === first.submittedAt && rec.standingOnly === 'attemptAbandoned',
             'an abandoned retake (auto-submitted) does not replace the submitted attempt');
         t.check(g.graded.length === gradedBefore, 'and it never reaches the gradebook writer');
-        t.check(/retakeAbandoned/.test(EXAM.resultsCsv([gone])), 'the CSV row is the standing attempt, flagged retakeAbandoned');
+        t.check(/attemptAbandoned/.test(EXAM.resultsCsv([gone])), 'the CSV row is the standing attempt, flagged attemptAbandoned');
+        t.check(!/selfReset/.test(EXAM.resultsCsv([gone])), 'the standing row does not carry the abandoned attempt\'s restart counts');
+        const shown = await EXAM.startExam(g.st, { studentId: 'rt-a', examId: EX }, g.o);
+        t.check(shown.submitted && shown.standing && shown.standing.why === 'attemptAbandoned' && shown.standing.attempt === first.attempt + 1 &&
+            typeof shown.standing.report.total === 'number', 'the student is shown which attempt is their grade after an abandoned retake');
         /* a retake from an abandoned one still stands on the student's submitted attempt */
         g.c.set(gone.submittedAt + 1000);
         await EXAM.resetSession(g.st, Object.assign({ retake: true }, me), g.o);
@@ -556,6 +560,15 @@ async function rejects(p, code, label) {
         await EXAM.submitExam(g.st, { sessionId: g.sid }, g.o);
         const done = EXAM.fromDocument(await g.st.get(g.sid));
         t.check(EXAM.recordOf(done) === done && g.graded.length === gradedBefore + 1, 'a submitted retake is the grade and reaches the gradebook');
+        t.check((await EXAM.startExam(g.st, { studentId: 'rt-a', examId: EX }, g.o)).standing === null, 'and the student is shown no other standing grade');
+    }
+    {
+        /* an admin new lab voids a submitted attempt for a platform fault: it never stands (Nancy #3) */
+        const g = await fresh('rt-b');
+        await EXAM.submitExam(g.st, { sessionId: g.sid }, g.o);
+        await EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'adm', targetUid: 'rt-b', token: ADMIN_TOKEN, adminEmails: ADMINS, reason: 'outage', evidence: 'INC-9' }, g.o);
+        const v = EXAM.fromDocument(await g.st.get(g.sid));
+        t.check(!v.submittedAt && !v.standing && EXAM.recordOf(v) === null, 'an admin void leaves no standing grade from the voided attempt');
     }
 
     /* ═══ mayReset (R6) ═══════════════════════════════════════════════════════════════════════ */

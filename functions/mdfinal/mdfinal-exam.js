@@ -136,7 +136,7 @@
         if (!st) { return null; }
         return Object.assign({}, session, { attempt: st.attempt, submittedAt: st.submittedAt, autoSubmitted: !!st.autoSubmitted,
                                             provisionedAt: st.provisionedAt || null, report: st.report,
-                                            standingOnly: session.submittedAt ? 'retakeAbandoned' : 'retakeInProgress' });
+                                            standingOnly: session.submittedAt ? 'attemptAbandoned' : 'attemptInProgress' });
     }
 
     /* The next seed whose fault variant differs from the voided lab's, so a new lab is never the same
@@ -190,8 +190,16 @@
             remainingMs: session.submittedAt ? 0 : remainingMs(session, opts),
             examMode: examModeFlags(),
             selfResetsLeft: Math.max(0, EXAMS.SELF_RESET_CAP - session.lineage.selfResets),
-            report: session.submittedAt ? E.GRADE.studentReport(session.report) : null
+            report: session.submittedAt ? E.GRADE.studentReport(session.report) : null,
+            /* the grade of record when it is not this attempt (a retake running, or one that ran out
+             * its clock unsubmitted), so the page never presents a voided score as the grade */
+            standing: standingReply(session)
         };
+    }
+    function standingReply(session) {
+        var rec = recordOf(session);
+        if (!rec || !rec.standingOnly) { return null; }
+        return { attempt: rec.attempt + 1, report: eng().GRADE.studentReport(rec.report), why: rec.standingOnly };
     }
 
     /* A new attempt of the sitting: generated from the secret (same lab every time for this uid and
@@ -573,7 +581,9 @@
         var next = newSession(cur.studentId, cur.examId, clock, opts.secret, cur.attempt + 1, lineage);
         /* the grade that stands while the new attempt runs: on a new lab, the attempt being replaced
          * (or the one it was standing on); on the same lab nothing was submitted, so it carries */
-        var rec = meta.newLab ? recordOf(cur) : null;
+        var rec = meta.newLab && who === 'retake' ? recordOf(cur) : null;
+        /* an admin new lab voids the attempt for a platform fault, so it never stands; whatever stood
+         * before it (an earlier submitted attempt) still does (Nancy, retake re-review #3) */
         next.standing = rec ? { attempt: rec.attempt, submittedAt: rec.submittedAt, autoSubmitted: !!rec.autoSubmitted,
                                 provisionedAt: rec.provisionedAt || null, report: rec.report } : (cur.standing || null);
         next.rev = cur.rev + 1;
@@ -637,8 +647,8 @@
             var fl = [];
             if (s.provisionedAt) { fl.push('provisioned'); }
             if (s.autoSubmitted) { fl.push('autoSubmitted'); }
-            if (s.lineage.selfResets) { fl.push('selfReset:' + s.lineage.selfResets); }
-            if (s.lineage.adminResets) { fl.push('adminReset:' + s.lineage.adminResets); }
+            if (s.lineage.selfResets && !s.standingOnly) { fl.push('selfReset:' + s.lineage.selfResets); }
+            if (s.lineage.adminResets && !s.standingOnly) { fl.push('adminReset:' + s.lineage.adminResets); }
             if (s.lineage.retakes) { fl.push('retake:' + s.lineage.retakes); }
             if (s.standingOnly) { fl.push(s.standingOnly); }
             return [s.studentId, e.score, e.passed ? 'pass' : 'not passed', fl.join(' ')].map(esc).join(',');
@@ -653,8 +663,8 @@
             var flags = [];
             if (s.provisionedAt) { flags.push('provisioned'); }
             if (s.autoSubmitted) { flags.push('autoSubmitted'); }
-            if (s.lineage.selfResets) { flags.push('selfReset:' + s.lineage.selfResets); }
-            if (s.lineage.adminResets) { flags.push('adminReset:' + s.lineage.adminResets); }
+            if (s.lineage.selfResets && !s.standingOnly) { flags.push('selfReset:' + s.lineage.selfResets); }
+            if (s.lineage.adminResets && !s.standingOnly) { flags.push('adminReset:' + s.lineage.adminResets); }
             if (s.lineage.retakes) { flags.push('retake:' + s.lineage.retakes); }
             if (s.standingOnly) { flags.push(s.standingOnly); }
             return { studentId: s.studentId, grade: s.report, flags: flags };

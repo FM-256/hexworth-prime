@@ -528,7 +528,7 @@
     }).catch(function (e) { showOutput(e.message, true); });
   }
   /* Aggregates only: total, phases, objectives (spec R5/R7). No per-check marks. */
-  function showReport(rep, note) {
+  function showReport(rep, note, standing) {
     state.submitted = true;
     if (tick) { clearInterval(tick); tick = null; }
     el('layout').hidden = true; el('gate').hidden = true;
@@ -536,7 +536,14 @@
     var p = el('reportPanel'); p.hidden = false; p.textContent = '';
     if (note) { p.appendChild(node('p', 'msg', note)); }
     if (!rep) { p.appendChild(node('p', null, 'Your exam has been submitted.')); return; }
-    p.appendChild(node('div', 'total', 'Total: ' + rep.total + ' / ' + rep.outOf));
+    /* a retake that ran out its clock unsubmitted does not count: show the grade that stands */
+    if (standing && standing.report) {
+      p.appendChild(node('p', 'msg', 'This attempt ran out of time before you submitted it, so it does not count. Your grade is still your attempt ' + standing.attempt + ' score.'));
+      p.appendChild(node('div', 'total', 'Your grade: ' + standing.report.total + ' / ' + standing.report.outOf));
+      p.appendChild(node('p', null, 'This attempt (not counted): ' + rep.total + ' / ' + rep.outOf));
+    } else {
+      p.appendChild(node('div', 'total', 'Total: ' + rep.total + ' / ' + rep.outOf));
+    }
     var t = node('table', 'keytable');
     Object.keys(rep.phases || {}).forEach(function (k) { var tr = node('tr'); tr.appendChild(node('td', null, 'Phase ' + k.slice(1))); tr.appendChild(node('td', null, rep.phases[k].score + ' / ' + rep.phases[k].max)); t.appendChild(tr); });
     p.appendChild(t);
@@ -548,7 +555,7 @@
 
   /* A retake: a new lab and a fresh 150-minute clock. The latest submitted attempt is the grade. */
   function retake() {
-    confirmStep('Start a retake? You get a new lab (a different work order and fault), a fresh 150-minute clock and your build restarts back. If you submit the retake, its score replaces this one, even if it is lower. If you leave it unfinished, this score stays your grade.')
+    confirmStep('Start a retake? You get a new lab (a different work order and fault), a fresh 150-minute clock and your build restarts back. If you submit the retake, its score replaces this one, even if it is lower. If the clock runs out before you press Submit, the retake does not count and this score stays your grade.')
       .then(function (ok) {
         if (!ok) { return; }
         return call('mdfinalReset', { retake: true }).then(function () {
@@ -569,7 +576,7 @@
   }
   function boot(r, note) {
     state.start = r;
-    if (r.submitted) { showReport(r.report, note || 'This exam has been submitted.'); return; }
+    if (r.submitted) { showReport(r.report, note || 'This exam has been submitted.', r.standing); return; }
     state.init = r.initialState;
     state.windows = r.initialState.windows;
     setConsoles(r.initialState.consoles);

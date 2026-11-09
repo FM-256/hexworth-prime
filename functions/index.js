@@ -11907,6 +11907,8 @@ exports.mdfinalResults = onCall(mdfinalOpts, async (request) => {
             if (p && !sess && arch.docs.length === 0) { flags.push('progress row present, no session'); }
             if (p && entry && ['score', 'total', 'passed', 'completed', 'sat'].some((k) => JSON.stringify(p[k]) !== JSON.stringify(entry[k]))) { flags.push('progress differs from the session'); }
             if (p && p.source !== 'mdfinal') { flags.push('progress source is not mdfinal'); }
+            /* a standing grade the gradebook lacks (its write failed); the rebuild cannot write it while a later attempt is live */
+            if (!p && entry && rec.standingOnly && cls && contentId) { flags.push('standing grade not in gradebook'); }
             /* (d) a row that claims a sitting the session does not show as submitted (Mallory D6 F2) */
             if (p && (p.sat || p.passed || p.completed) && !(rec && rec.submittedAt)) { flags.push('progress claims a sitting that is not submitted'); }
             /* the rebuild below overwrites a forged row, so the evidence is logged first */
