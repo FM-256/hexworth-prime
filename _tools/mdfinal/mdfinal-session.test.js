@@ -538,6 +538,10 @@ async function rejects(p, code, label) {
         /* a second click from a stale tab must not spend a build restart */
         await rejects(EXAM.resetSession(g.st, Object.assign({ retake: true }, me), g.o), 'failed-precondition', 'a retake request on a running retake is refused, not turned into a build restart');
         t.check(EXAM.fromDocument(await g.st.get(g.sid)).lineage.selfResets === 0, 'and no build restart was spent');
+        /* a build restart during the retake keeps the standing attempt (same lab, nothing submitted) */
+        await EXAM.resetSession(g.st, me, g.o);
+        const restarted = EXAM.fromDocument(await g.st.get(g.sid));
+        t.check(restarted.lineage.selfResets === 1 && restarted.standing && restarted.standing.submittedAt === first.submittedAt, 'a build restart in a retake keeps the standing attempt');
         /* abandoned: the clock runs out and the sweep submits it */
         g.c.set(mid.expiresAt + 1000);
         await EXAM.sweepExpired(g.st, [g.sid], g.o);
