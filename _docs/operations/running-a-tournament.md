@@ -43,7 +43,7 @@ Admin Console -> CTF Tournament Management panel (`_app/admin/console.html`, `da
 | Status | Set by | What it actually permits |
 |---|---|---|
 | `draft` | Created here | Edit freely. `ctfJoinTeam` and `ctfSubmitFlag` both refuse. Boxes staffed via "Import from Boxes" still disclose their flags through `deliverFlag` — authoring is not competing (`functions/index.js:739`). |
-| `lobby` | Admin clicks "Open Registration" | `ctfJoinTeam` admits joins (`functions/index.js:8143` checks `lobby` OR `active`). `ctfSubmitFlag` and `ctfGetBoxCredential` still refuse — a team can register before the box or the flag input opens. |
+| `lobby` | Admin clicks "Open Registration" | `ctfJoinTeam` admits joins (`functions/index.js:8148` checks `lobby` OR `active`). `ctfSubmitFlag` and `ctfGetBoxCredential` still refuse — a team can register before the box or the flag input opens. |
 | `active` | Admin clicks "Start Tournament" | Everything opens: joins, flag submission, real-box credentials. `startTime` is set. |
 | `frozen` | Admin clicks "Freeze Scoreboard" | Submissions still graded server-side. Display freezes (see Section 6) — this is a projection control, not an access control. `ctfJoinTeam` refuses (not `lobby`/`active`). `ctfGetBoxCredential` still serves. |
 | `ended` | Admin clicks "End Tournament" | Submissions and box credentials both refuse. Podium reveals final standings once `results/final` exists (Section 8). |
@@ -68,7 +68,7 @@ salt = `{joinCode}-{challengeId}`. The plaintext you type is never stored.
 **Importing from a box copies the box's registry flag TEXT verbatim into the challenge.**
 `_app/admin/console.html:11466-11513` reads `flag_registry/{boxId}.flags`, and for every flag on that box
 writes a challenge whose `flag` field is that flag's exact text — the same text `deliverFlag`
-(`functions/index.js:682`) hands out to any signed-in student for the solo Arena version of that
+(`functions/index.js:673`) hands out to any signed-in student for the solo Arena version of that
 box. The challenge secret is not a fresh secret; it is the box's public answer, differing only by
 a salt that is derived from public values.
 
