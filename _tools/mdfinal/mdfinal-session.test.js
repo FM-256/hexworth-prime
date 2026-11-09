@@ -251,8 +251,20 @@ async function rejects(p, code, label) {
         const self1 = EXAM.fromDocument(await g.st.get(g.sid));
         t.check(self1.lineage.seed === 1 && JSON.stringify(self1.answerKey) === JSON.stringify(seed1.answerKey), 'a self-reset afterwards keeps the new lab');
         await EXAM.submitExam(g.st, { sessionId: g.sid }, g.o);
-        await rejects(EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'rs-2', targetUid: 'rs-2', token: {}, adminEmails: ADMINS }, g.o), 'permission-denied', 'self-reset after submit denied');
         await rejects(EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'adm', targetUid: 'rs-2', token: ADMIN_TOKEN, adminEmails: ADMINS, reason: 'outage', evidence: 'INC-1' }, g.o), 'permission-denied', 'a second admin reset needs the operator, after submit too');
+        /* retakes (operator, 2026-11-09): after submit the owner may start a new lab while a new start
+         * is allowed; the latest submitted attempt is the grade */
+        const preRetake = EXAM.fromDocument(await g.st.get(g.sid));
+        const rt = await EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'rs-2', targetUid: 'rs-2', token: {}, adminEmails: ADMINS }, g.o);
+        const postRetake = EXAM.fromDocument(await g.st.get(g.sid));
+        t.check(rt.kind === 'retake' && !postRetake.submittedAt && postRetake.lineage.retakes === 1 && postRetake.lineage.seed > preRetake.lineage.seed &&
+            postRetake.answerKey.variant !== preRetake.answerKey.variant && postRetake.expiresAt - postRetake.startedAt === postRetake.durationMs && postRetake.startedAt === g.c.now(),
+            'a retake after submit deals a new lab (different fault) on a fresh clock and counts the retake');
+        t.check(Object.values(g.st.archived()).some((a) => a.kind === 'retake' && a.newLab === true), 'the submitted attempt is archived, marked retake');
+        await EXAM.submitExam(g.st, { sessionId: g.sid }, g.o);
+        await g.st.putControl(EX, { armed: false, allowUids: [] });
+        await rejects(EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'rs-2', targetUid: 'rs-2', token: {}, adminEmails: ADMINS }, g.o), 'failed-precondition', 'a retake is refused once a new start is not allowed (not armed, not allowlisted)');
+        await rejects(EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'rs-x', targetUid: 'rs-2', token: {}, adminEmails: ADMINS }, g.o), 'permission-denied', 'another student cannot retake this sitting');
         const ro = await EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'op', targetUid: 'rs-2', token: OPERATOR_TOKEN, adminEmails: ADMINS, reason: 'outage', evidence: 'INC-2' }, g.o);
         const seed2 = EXAM.fromDocument(await g.st.get(g.sid));
         t.check(ro.kind === 'admin' && seed2.lineage.seed > seed1.lineage.seed && !seed2.submittedAt, 'the operator resets a submitted sitting: a later seed, unsubmitted');
@@ -509,7 +521,9 @@ async function rejects(p, code, label) {
     {
         const open = { submittedAt: null, handedOverAt: null, expiresAt: 2e12, lineage: { selfResets: 0 } };
         t.check(EXAM.mayReset('u', 'u', {}, ADMINS, open, 1e12) === 'self', 'mayReset: own open sitting');
-        t.check(EXAM.mayReset('u', 'u', {}, ADMINS, Object.assign({}, open, { submittedAt: 1 }), 1e12) === false, 'mayReset: own submitted sitting denied');
+        t.check(EXAM.mayReset('u', 'u', {}, ADMINS, Object.assign({}, open, { submittedAt: 1 }), 1e12) === 'retake', 'mayReset: own submitted sitting is a retake');
+        t.check(EXAM.mayReset('u', 'u', ADMIN_TOKEN, ADMINS, Object.assign({}, open, { submittedAt: 1 }), 1e12) === 'retake', 'mayReset: an admin\'s own submitted sitting is a retake, not an admin reset');
+        t.check(EXAM.mayReset('v', 'u', {}, ADMINS, Object.assign({}, open, { submittedAt: 1 }), 1e12) === false, 'mayReset: someone else\'s submitted sitting denied');
         t.check(EXAM.mayReset('u', 'v', { handler: true }, ADMINS, open, 1e12) === false, 'mayReset: handler denied');
         t.check(EXAM.mayReset('u', 'v', ADMIN_TOKEN, ADMINS, open, 1e12) === 'admin', 'mayReset: admin');
         t.check(EXAM.mayReset('u', 'v', OPERATOR_TOKEN, ADMINS, open, 1e12) === 'admin', 'mayReset: a verified allowlisted email is admin');

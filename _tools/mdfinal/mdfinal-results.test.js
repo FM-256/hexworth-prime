@@ -243,7 +243,7 @@ chk('without wiping the other completion on that row', ((docs.get('classes/c-md/
 chk('a class that did not assign the final gets nothing', !docs.has('classes/c-none/progress/stu'));
 chk('a class owned by a non-staff user gets nothing (Mallory\'s planted class)', !docs.has('classes/c-evil/progress/stu'));
 chk('a second submit is idempotent', (await call(F.mdfinalSubmit, student('stu'), { examId: EX })).alreadySubmitted === true);
-chk('a student cannot restart after submit', (await code(call(F.mdfinalReset, student('stu'), { examId: EX }))) === 'permission-denied');
+chk('another student cannot restart this sitting', (await code(call(F.mdfinalReset, student('nl'), { examId: EX, uid: 'stu' }))) === 'permission-denied');
 /* 13.19 item 1, on a disposable student so the sections below keep stu's sitting */
 await call(F.mdfinalControl, admin('boss'), { examId: EX, allowUids: { add: ['nl'] } });
 await call(F.mdfinalStart, student('nl'), { examId: EX });
@@ -259,14 +259,17 @@ section('R6 mutation: swapping in netfinal\'s rule must be visible to this suite
 await call(F.mdfinalControl, admin('boss'), { examId: EX, allowUids: { add: ['mut'] } });
 await call(F.mdfinalStart, student('mut'), { examId: EX });
 await call(F.mdfinalSubmit, student('mut'), { examId: EX });
-chk('(baseline) the after-submit self-reset is denied', (await code(call(F.mdfinalReset, student('mut'), { examId: EX }))) === 'permission-denied');
+/* a retake is allowed only while a new start is; with mut off the allowlist and the exam unarmed it
+ * is refused, where netfinal's rule would reset the sitting */
+await call(F.mdfinalControl, admin('boss'), { examId: EX, allowUids: { remove: ['mut'] } });
+chk('(baseline) the after-submit retake is refused while starts are closed', (await code(call(F.mdfinalReset, student('mut'), { examId: EX }))) === 'failed-precondition');
 const realMay = MD.mayReset;
 MD.mayReset = NETFINAL.mayReset;
 const swapped = await code(call(F.mdfinalReset, student('mut'), { examId: EX }));
 MD.mayReset = realMay;
-chk('with NETFINAL.mayReset swapped in, the after-submit self-reset is NO LONGER denied (the suite would go red)', swapped !== 'permission-denied', swapped);
+chk('with NETFINAL.mayReset swapped in, the after-submit reset is NO LONGER refused (the suite would go red)', swapped !== 'failed-precondition', swapped);
 await call(F.mdfinalSubmit, student('mut'), { examId: EX });
-chk('restored: denied again', (await code(call(F.mdfinalReset, student('mut'), { examId: EX }))) === 'permission-denied');
+chk('restored: refused again', (await code(call(F.mdfinalReset, student('mut'), { examId: EX }))) === 'failed-precondition');
 
 section('rehearsal: never recorded');
 await call(F.mdfinalControl, admin('boss'), { examId: RH, allowUids: { add: ['bob'] } });

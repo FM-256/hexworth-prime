@@ -125,6 +125,15 @@
     /* The seed index a sitting's lab is derived with (0 until an admin reset deals a new lab). */
     function seedOf(lineage) { return lineage && typeof lineage.seed === 'number' ? lineage.seed : 0; }
 
+    /* The next seed whose fault variant differs from the voided lab's, so a new lab is never the same
+     * fault with the same answers (Nancy R6 #3: about 1 in 4 otherwise). */
+    function nextLabSeed(cur, lineage, opts) {
+        var nextSeed = seedOf(lineage) + 1, E0 = eng();
+        while (nextSeed <= 99 && E0.GRADE.buildAnswerKey(cur.studentId, cur.examId, { secret: opts.secret, seed: nextSeed }).variant === cur.answerKey.variant) { nextSeed++; }
+        if (nextSeed > 99) { throw err('failed-precondition', 'This sitting has no further lab to deal.'); }
+        return nextSeed;
+    }
+
     /* ── start and resume ────────────────────────────────────────────────────────────────────── */
 
     /* Spec 1.4 lockdown flags, as data the page reads (13.5 item 7: one graded submission). */
@@ -440,11 +449,15 @@
     /* ── resets (13.5 item 6) ────────────────────────────────────────────────────────────────── */
 
     /* Who may reset this sitting, decided on the sitting as read inside the reset (R6, 13.5 item 6):
+     *   'retake': the owner (admin or not) once the sitting is submitted (operator, 2026-11-09:
+     *             unlimited retakes, the latest submitted attempt counts); resetSession then checks a
+     *             new start is still allowed (armed and inside the window, or allowlisted);
      *   'self'  : the owner, not admin, while not submitted, not handed over, not expired, under the cap;
      *   'admin' : a platform admin (the admin rules then apply);
      *   false   : everyone else, including class handlers. */
     function mayReset(callerUid, targetUid, token, adminEmails, session, now) {
         if (!validUid(callerUid) || !validUid(targetUid)) { return false; }
+        if (callerUid === targetUid && session && session.submittedAt) { return 'retake'; }
         if (isAdmin(token, adminEmails)) { return 'admin'; }
         if (callerUid !== targetUid || !session) { return false; }
         if (session.submittedAt || session.handedOverAt) { return false; }
@@ -479,7 +492,18 @@
         var lineage = JSON.parse(JSON.stringify(cur.lineage));
         var clock = { startedAt: cur.startedAt, expiresAt: cur.expiresAt, durationMs: cur.durationMs };
         var meta = { resetAt: t, resetBy: args.callerUid, kind: who };
-        if (who === 'admin') {
+        if (who === 'retake') {
+            /* a retake is a new start: the same gate as startExam (armed and in the window, or
+             * allowlisted; the rehearsal for admins), then a NEW lab with a fresh clock */
+            var control = await store.getControl(cur.examId);
+            if (!EXAMS.mayCreate(cur.examId, args.targetUid, isAdmin(args.token, args.adminEmails), control, t)) {
+                throw err('failed-precondition', 'Retakes are closed for this exam.');
+            }
+            lineage.seed = nextLabSeed(cur, lineage, opts);
+            clock = { startedAt: t, expiresAt: t + cur.durationMs, durationMs: cur.durationMs };
+            meta.newLab = true;
+            lineage.retakes = (lineage.retakes || 0) + 1;
+        } else if (who === 'admin') {
             if (EXAMS.PLATFORM_FAULT_CODES.indexOf(args.reason) < 0) { throw err('invalid-argument', 'Give a platform fault code as the reason.'); }
             if (typeof args.evidence !== 'string' || !args.evidence.trim() || args.evidence.length > 500) {
                 throw err('invalid-argument', 'Give an evidence reference for the restart.');
@@ -493,10 +517,7 @@
             if (cur.submittedAt || cur.handedOverAt) {
                 /* the next seed whose fault variant differs from the voided lab's, so the retake is
                  * never the same fault with the same answers (Nancy R6 #3: about 1 in 4 otherwise) */
-                var nextSeed = seedOf(lineage) + 1, E0 = eng();
-                while (nextSeed <= 99 && E0.GRADE.buildAnswerKey(cur.studentId, cur.examId, { secret: opts.secret, seed: nextSeed }).variant === cur.answerKey.variant) { nextSeed++; }
-                if (nextSeed > 99) { throw err('failed-precondition', 'This sitting has no further lab to deal.'); }
-                lineage.seed = nextSeed;
+                lineage.seed = nextLabSeed(cur, lineage, opts);
                 clock = { startedAt: t, expiresAt: t + cur.durationMs, durationMs: cur.durationMs };
                 meta.newLab = true;
             } else if (args.freshClock === true) {
@@ -590,6 +611,7 @@
             if (s.autoSubmitted) { fl.push('autoSubmitted'); }
             if (s.lineage.selfResets) { fl.push('selfReset:' + s.lineage.selfResets); }
             if (s.lineage.adminResets) { fl.push('adminReset:' + s.lineage.adminResets); }
+            if (s.lineage.retakes) { fl.push('retake:' + s.lineage.retakes); }
             return [s.studentId, e.score, e.passed ? 'pass' : 'not passed', fl.join(' ')].map(esc).join(',');
         });
         return ['studentId,total,result,flags'].concat(rows).join('\n');
@@ -604,6 +626,7 @@
             if (s.autoSubmitted) { flags.push('autoSubmitted'); }
             if (s.lineage.selfResets) { flags.push('selfReset:' + s.lineage.selfResets); }
             if (s.lineage.adminResets) { flags.push('adminReset:' + s.lineage.adminResets); }
+            if (s.lineage.retakes) { flags.push('retake:' + s.lineage.retakes); }
             return { studentId: s.studentId, grade: s.report, flags: flags };
         }));
     }
