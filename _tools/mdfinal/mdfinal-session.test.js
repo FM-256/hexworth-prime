@@ -517,6 +517,47 @@ async function rejects(p, code, label) {
         t.check(realSR === GRADE.studentReport, '(no patching)');
     }
 
+    /* ═══ retakes: the grade of record (operator, 2026-11-09) ════════════════════════════════════
+     * the latest attempt the student submits is the grade; while a retake runs, and after one runs out
+     * unsubmitted, the attempt before it stands; each retake has its own build restarts */
+    {
+        const g = await fresh('rt-a');
+        const me = { sessionId: g.sid, callerUid: 'rt-a', targetUid: 'rt-a', token: {}, adminEmails: ADMINS };
+        await EXAM.resetSession(g.st, me, g.o);                      /* a build restart on attempt 0 */
+        await EXAM.submitExam(g.st, { sessionId: g.sid }, g.o);
+        const first = EXAM.fromDocument(await g.st.get(g.sid));
+        const gradedBefore = g.graded.length;
+        await EXAM.resetSession(g.st, Object.assign({ retake: true }, me), g.o);
+        const mid = EXAM.fromDocument(await g.st.get(g.sid));
+        t.check(mid.lineage.selfResets === 0 && mid.lineage.retakes === 1, 'a retake gives back the build restarts');
+        const midRec = EXAM.recordOf(mid);
+        t.check(midRec && midRec.submittedAt === first.submittedAt && midRec.attempt === first.attempt && midRec.standingOnly === 'retakeInProgress',
+            'while the retake runs, the submitted attempt stands');
+        t.check(/retakeInProgress/.test(EXAM.resultsCsv([mid])) && EXAM.totalsCsv([mid]).split('\n').length === 2, 'mid-retake the student stays in both CSVs, flagged');
+        t.check(EXAM.instructorView(mid, {}).entry && EXAM.instructorView(mid, {}).entry.satAt === new Date(first.submittedAt).toISOString(), 'mid-retake the staff view carries the standing entry');
+        /* a second click from a stale tab must not spend a build restart */
+        await rejects(EXAM.resetSession(g.st, Object.assign({ retake: true }, me), g.o), 'failed-precondition', 'a retake request on a running retake is refused, not turned into a build restart');
+        t.check(EXAM.fromDocument(await g.st.get(g.sid)).lineage.selfResets === 0, 'and no build restart was spent');
+        /* abandoned: the clock runs out and the sweep submits it */
+        g.c.set(mid.expiresAt + 1000);
+        await EXAM.sweepExpired(g.st, [g.sid], g.o);
+        const gone = EXAM.fromDocument(await g.st.get(g.sid));
+        const rec = EXAM.recordOf(gone);
+        t.check(gone.submittedAt && gone.autoSubmitted && rec.submittedAt === first.submittedAt && rec.standingOnly === 'retakeAbandoned',
+            'an abandoned retake (auto-submitted) does not replace the submitted attempt');
+        t.check(g.graded.length === gradedBefore, 'and it never reaches the gradebook writer');
+        t.check(/retakeAbandoned/.test(EXAM.resultsCsv([gone])), 'the CSV row is the standing attempt, flagged retakeAbandoned');
+        /* a retake from an abandoned one still stands on the student's submitted attempt */
+        g.c.set(gone.submittedAt + 1000);
+        await EXAM.resetSession(g.st, Object.assign({ retake: true }, me), g.o);
+        const again = EXAM.fromDocument(await g.st.get(g.sid));
+        t.check(again.standing && again.standing.submittedAt === first.submittedAt && again.lineage.retakes === 2, 'retaking after an abandoned retake keeps the same standing attempt');
+        /* a retake the student submits is the new grade */
+        await EXAM.submitExam(g.st, { sessionId: g.sid }, g.o);
+        const done = EXAM.fromDocument(await g.st.get(g.sid));
+        t.check(EXAM.recordOf(done) === done && g.graded.length === gradedBefore + 1, 'a submitted retake is the grade and reaches the gradebook');
+    }
+
     /* ═══ mayReset (R6) ═══════════════════════════════════════════════════════════════════════ */
     {
         const open = { submittedAt: null, handedOverAt: null, expiresAt: 2e12, lineage: { selfResets: 0 } };

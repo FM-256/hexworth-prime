@@ -11809,7 +11809,7 @@ exports.mdfinalReset = onCall(mdfinalOpts, async (request) => {
             sessionId: MD.sessionIdFor(target, examId), callerUid: request.auth.uid, targetUid: target,
             token: request.auth.token, adminEmails: ADMIN_EMAILS,
             reason: typeof data.reason === 'string' ? data.reason : '', evidence: typeof data.evidence === 'string' ? data.evidence : '',
-            freshClock: data.freshClock === true, faultAt: data.faultAt
+            freshClock: data.freshClock === true, faultAt: data.faultAt, retake: data.retake === true
         }, { secret: netfinalSeedSecret.value() || null, onGraded: mdfinalRecordGrade });
         console.log('[mdfinalReset] ' + request.auth.uid + ' restarted ' + target + '::' + examId + ' (' + res.kind + ', attempt ' + res.attempt + ')');
         return { ...res, uid: target, examId };
@@ -11897,15 +11897,18 @@ exports.mdfinalResults = onCall(mdfinalOpts, async (request) => {
                 cls && contentId ? cls.ref.collection('progress').doc(uid).get() : Promise.resolve(null)
             ]);
             const sess = MD.fromDocument(doc);
-            if (sess && sess.submittedAt && cls) { await mdfinalRecordGrade(sess, cls.id, ownerCache); }
-            const entry = MD.gradebookEntry(sess);
+            /* the grade of record: the live sitting, or the attempt standing while a retake runs or
+             * after one was abandoned (operator, 2026-11-09) */
+            const rec = MD.recordOf(sess);
+            if (rec && rec.submittedAt && !rec.standingOnly && cls) { await mdfinalRecordGrade(rec, cls.id, ownerCache); }
+            const entry = MD.gradebookEntry(rec);
             const p = prog && prog.exists ? ((prog.data() || {}).completions || {})[contentId] : null;
             const flags = [];
             if (p && !sess && arch.docs.length === 0) { flags.push('progress row present, no session'); }
             if (p && entry && ['score', 'total', 'passed', 'completed', 'sat'].some((k) => JSON.stringify(p[k]) !== JSON.stringify(entry[k]))) { flags.push('progress differs from the session'); }
             if (p && p.source !== 'mdfinal') { flags.push('progress source is not mdfinal'); }
             /* (d) a row that claims a sitting the session does not show as submitted (Mallory D6 F2) */
-            if (p && (p.sat || p.passed || p.completed) && !(sess && sess.submittedAt)) { flags.push('progress claims a sitting that is not submitted'); }
+            if (p && (p.sat || p.passed || p.completed) && !(rec && rec.submittedAt)) { flags.push('progress claims a sitting that is not submitted'); }
             /* the rebuild below overwrites a forged row, so the evidence is logged first */
             if (flags.length) { console.warn('[mdfinal] mismatch ' + uid + ' class ' + (cls ? cls.id : '-') + ': ' + flags.join('; ') + ' row=' + JSON.stringify(p).slice(0, 500)); }
             const u = user.exists ? user.data() : {};

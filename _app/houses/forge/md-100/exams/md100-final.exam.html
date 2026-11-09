@@ -514,14 +514,14 @@
   }
   function restartBuild() {
     var left = state.start ? state.start.selfResetsLeft : 0;
-    confirmStep('Restart your build from the beginning? Your clock keeps running, it is not a second attempt, and any penalty already incurred still counts. Restarts left: ' + left + '.')
+    confirmStep('Restart your build from the beginning? It keeps the same lab, your clock keeps running, and any penalty already incurred still counts. Restarts left: ' + left + '.')
       .then(function (ok) {
         if (!ok) { return; }
         return call('mdfinalReset', {}).then(function () { reload('[Build restarted: a fresh PC on the same lab. Your clock kept running.]'); });
       }).catch(function (e) { showOutput(e.message, true); });
   }
   function submit(auto) {
-    var go = auto ? Promise.resolve(true) : confirmStep('Submit the exam? You submit once, and nothing can be changed afterwards.');
+    var go = auto ? Promise.resolve(true) : confirmStep('Submit the exam? Nothing in this attempt can be changed afterwards. You may then retake it on a new lab; the latest attempt you submit is your grade.');
     go.then(function (ok) {
       if (!ok) { return; }
       return call('mdfinalSubmit', {}).then(function (r) { showReport(r.report, null); });
@@ -548,14 +548,19 @@
 
   /* A retake: a new lab and a fresh 150-minute clock. The latest submitted attempt is the grade. */
   function retake() {
-    confirmStep('Start a retake? You get a new lab (a different work order and fault) and a fresh 150-minute clock. Your latest submitted attempt is your grade, so if you submit the retake, its score replaces this one, even if it is lower.')
+    confirmStep('Start a retake? You get a new lab (a different work order and fault), a fresh 150-minute clock and your build restarts back. If you submit the retake, its score replaces this one, even if it is lower. If you leave it unfinished, this score stays your grade.')
       .then(function (ok) {
         if (!ok) { return; }
-        return call('mdfinalReset', {}).then(function () {
+        return call('mdfinalReset', { retake: true }).then(function () {
           state.submitted = false; el('reportPanel').hidden = true;
           return reload('[Retake started: a new lab with a fresh 150-minute clock.]');
         });
-      }).catch(function (e) { var p = el('reportPanel'); p.appendChild(node('p', 'bad', e.message)); });
+      }).catch(function (e) {
+        /* one message, replaced on each failure */
+        var m = el('retakeMsg');
+        if (!m) { m = node('p', 'bad'); m.id = 'retakeMsg'; el('reportPanel').appendChild(m); }
+        m.textContent = e.message;
+      });
   }
 
   /* ── start / resume ── */
@@ -575,10 +580,11 @@
     el('btnReset').hidden = !!r.handedOver || !(r.selfResetsLeft > 0);
     /* a restarted build shows nothing of the old attempt (Nancy R5 #1) */
     state.open = null; el('windowPanel').hidden = true; el('view').textContent = ''; showOutput('', false); el('term').textContent = '';
+    /* nor its as-built record: a retake is a new lab, so the old fields must not be saved into it */
+    el('sideRecord').textContent = ''; showSide('brief');
     state.handedOver = !!r.handedOver;
     renderBrief(); renderTicket(); renderLauncher();
-    termWrite(r.resumed ? '[session resumed: same lab, same clock]' : '[Lab ready. Start in Hyper-V Manager on the host.]');
-    if (note) { termWrite(note); }
+    termWrite(note || (r.resumed ? '[session resumed: same lab, same clock]' : '[Lab ready. Start in Hyper-V Manager on the host.]'));
     startTick();
   }
 

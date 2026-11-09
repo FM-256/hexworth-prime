@@ -90,7 +90,7 @@
             handedOverAt: s.handedOverAt || null, provisionedAt: s.provisionedAt || null, provisionedBy: s.provisionedBy || null,
             generatorVersion: s.generatorVersion,
             stateJson: j(s.state), snapshotJson: j(s.snapshot), p1SnapshotJson: j(s.p1Snapshot),
-            answerKeyJson: j(s.answerKey), reportJson: j(s.report), lineageJson: j(s.lineage),
+            answerKeyJson: j(s.answerKey), reportJson: j(s.report), lineageJson: j(s.lineage), standingJson: j(s.standing),
             rev: Number(s.rev || 0)
         };
     }
@@ -104,7 +104,7 @@
             handedOverAt: d.handedOverAt || null, provisionedAt: d.provisionedAt || null, provisionedBy: d.provisionedBy || null,
             generatorVersion: d.generatorVersion,
             state: p(d.stateJson), snapshot: p(d.snapshotJson), p1Snapshot: p(d.p1SnapshotJson),
-            answerKey: p(d.answerKeyJson), report: p(d.reportJson), lineage: p(d.lineageJson) || freshLineage(),
+            answerKey: p(d.answerKeyJson), report: p(d.reportJson), lineage: p(d.lineageJson) || freshLineage(), standing: p(d.standingJson),
             rev: Number(d.rev || 0)
         };
     }
@@ -125,6 +125,20 @@
     /* The seed index a sitting's lab is derived with (0 until an admin reset deals a new lab). */
     function seedOf(lineage) { return lineage && typeof lineage.seed === 'number' ? lineage.seed : 0; }
 
+    /* The attempt that stands as the grade (operator, 2026-11-09): the latest attempt the student
+     * submitted. A retake that ran out its clock unsubmitted (auto-submitted) does not replace the
+     * attempt before it, and while a retake is in progress the attempt before it stands. Returns the
+     * session itself, or a copy carrying the standing attempt's grade, or null when nothing stands. */
+    function recordOf(session) {
+        if (!session) { return null; }
+        var st = session.standing;
+        if (session.submittedAt && session.report && !(session.autoSubmitted && st)) { return session; }
+        if (!st) { return null; }
+        return Object.assign({}, session, { attempt: st.attempt, submittedAt: st.submittedAt, autoSubmitted: !!st.autoSubmitted,
+                                            provisionedAt: st.provisionedAt || null, report: st.report,
+                                            standingOnly: session.submittedAt ? 'retakeAbandoned' : 'retakeInProgress' });
+    }
+
     /* The next seed whose fault variant differs from the voided lab's, so a new lab is never the same
      * fault with the same answers (Nancy R6 #3: about 1 in 4 otherwise). */
     function nextLabSeed(cur, lineage, opts) {
@@ -136,10 +150,11 @@
 
     /* ── start and resume ────────────────────────────────────────────────────────────────────── */
 
-    /* Spec 1.4 lockdown flags, as data the page reads (13.5 item 7: one graded submission). */
+    /* Spec 1.4 lockdown flags, as data the page reads. 13.5 item 7's one graded submission became
+     * retakes on 2026-11-09 (operator): the latest attempt the student submits is the grade. */
     function examModeFlags() {
         return { examMode: true, loadHexAI: false, courseLinks: false, hints: false, timeBonus: false,
-                 serverTimer: true, serverGraded: true, oneGradedSubmission: true, selfResetCap: EXAMS.SELF_RESET_CAP };
+                 serverTimer: true, serverGraded: true, oneGradedSubmission: false, retakes: true, selfResetCap: EXAMS.SELF_RESET_CAP };
     }
 
     /* The student's own saved P8 values (selects as ids, typed values as $s). */
@@ -404,6 +419,8 @@
      * the grade: the session is the record of truth. */
     async function notifyGraded(session, opts) {
         if (!opts || typeof opts.onGraded !== 'function') { return; }
+        /* an abandoned retake (auto-submitted, with an earlier attempt standing) is not the grade */
+        if (recordOf(session) !== session) { return; }
         try { await opts.onGraded(session); }
         catch (e) { if (typeof console !== 'undefined') { console.error('[mdfinal] onGraded failed: ' + (e && e.message)); } }
     }
@@ -489,6 +506,9 @@
         /* through the exported binding, so the R6 mutation test (swap in netfinal's rule) can see it */
         var who = api.mayReset(args.callerUid, args.targetUid, args.token, args.adminEmails, cur, t);
         if (!who) { throw err('permission-denied', 'This sitting cannot be restarted.'); }
+        /* the page's Retake button asks for a retake; from a stale tab the sitting may already be a
+         * new attempt, which must not silently spend a build restart instead (Nancy, retake review) */
+        if (args.retake === true && who !== 'retake') { throw err('failed-precondition', 'Your retake has already started. Reload the page.'); }
         var lineage = JSON.parse(JSON.stringify(cur.lineage));
         var clock = { startedAt: cur.startedAt, expiresAt: cur.expiresAt, durationMs: cur.durationMs };
         var meta = { resetAt: t, resetBy: args.callerUid, kind: who };
@@ -503,6 +523,8 @@
             clock = { startedAt: t, expiresAt: t + cur.durationMs, durationMs: cur.durationMs };
             meta.newLab = true;
             lineage.retakes = (lineage.retakes || 0) + 1;
+            /* each retake is a new attempt with its own build restarts (operator, 2026-11-09) */
+            lineage.selfResets = 0;
         } else if (who === 'admin') {
             if (EXAMS.PLATFORM_FAULT_CODES.indexOf(args.reason) < 0) { throw err('invalid-argument', 'Give a platform fault code as the reason.'); }
             if (typeof args.evidence !== 'string' || !args.evidence.trim() || args.evidence.length > 500) {
@@ -549,6 +571,11 @@
         incurred.forEach(function (id) { if (lineage.penalties.indexOf(id) < 0) { lineage.penalties.push(id); } });
         lineage.resets.push({ at: t, by: args.callerUid, kind: who, reason: meta.reason || null });
         var next = newSession(cur.studentId, cur.examId, clock, opts.secret, cur.attempt + 1, lineage);
+        /* the grade that stands while the new attempt runs: on a new lab, the attempt being replaced
+         * (or the one it was standing on); on the same lab nothing was submitted, so it carries */
+        var rec = meta.newLab ? recordOf(cur) : null;
+        next.standing = rec ? { attempt: rec.attempt, submittedAt: rec.submittedAt, autoSubmitted: !!rec.autoSubmitted,
+                                provisionedAt: rec.provisionedAt || null, report: rec.report } : (cur.standing || null);
         next.rev = cur.rev + 1;
         var archiveId = sid + '__' + cur.attempt + '__' + t;
         var ok = await store.replaceIfRev(sid, toDocument(cur), cur.rev, archiveId, Object.assign(toDocument(cur), meta, { originalId: sid }), toDocument(next));
@@ -569,7 +596,7 @@
             phases: sr.phases, objectives: E.GRADE.objectiveTotals(rep),
             satAt: new Date(session.submittedAt).toISOString(), completedAt: pass ? new Date(session.submittedAt).toISOString() : null,
             duration: Math.max(0, Math.round(Number(rep.durationUsedMs || 0) / 1000)),
-            flagged: !!(session.lineage.selfResets || session.lineage.adminResets),
+            flagged: !!(session.lineage.selfResets || session.lineage.adminResets || session.lineage.retakes),
             provisioned: !!session.provisionedAt, autoSubmitted: !!session.autoSubmitted,
             source: 'mdfinal'
         };
@@ -584,7 +611,8 @@
             remainingMs: session.submittedAt ? 0 : remainingMs(session, opts),
             handedOverAt: session.handedOverAt, provisionedAt: session.provisionedAt, autoSubmitted: !!session.autoSubmitted,
             selfResets: session.lineage.selfResets, adminResets: session.lineage.adminResets, seed: seedOf(session.lineage),
-            report: session.report, entry: gradebookEntry(session)
+            report: session.report, entry: gradebookEntry(recordOf(session)), retakes: session.lineage.retakes || 0,
+            standingAttempt: session.standing ? session.standing.attempt : null
         };
     }
 
@@ -604,7 +632,7 @@
     /* The handler's CSV: totals only, one line per submitted sitting. */
     function totalsCsv(sessions) {
         var esc = function (v) { var t = String(v === undefined || v === null ? '' : v); return /[",\n]/.test(t) ? '"' + t.split('"').join('""') + '"' : t; };
-        var rows = sessions.filter(function (s) { return s && s.submittedAt && s.report; }).map(function (s) {
+        var rows = sessions.map(recordOf).filter(function (s) { return s && s.submittedAt && s.report; }).map(function (s) {
             var e = gradebookEntry(s);
             var fl = [];
             if (s.provisionedAt) { fl.push('provisioned'); }
@@ -612,6 +640,7 @@
             if (s.lineage.selfResets) { fl.push('selfReset:' + s.lineage.selfResets); }
             if (s.lineage.adminResets) { fl.push('adminReset:' + s.lineage.adminResets); }
             if (s.lineage.retakes) { fl.push('retake:' + s.lineage.retakes); }
+            if (s.standingOnly) { fl.push(s.standingOnly); }
             return [s.studentId, e.score, e.passed ? 'pass' : 'not passed', fl.join(' ')].map(esc).join(',');
         });
         return ['studentId,total,result,flags'].concat(rows).join('\n');
@@ -620,13 +649,14 @@
     /* The CSV the instructor grades from: one line per submitted sitting. */
     function resultsCsv(sessions) {
         var E = eng();
-        return E.GRADE.toCsv(sessions.filter(function (s) { return s && s.submittedAt && s.report; }).map(function (s) {
+        return E.GRADE.toCsv(sessions.map(recordOf).filter(function (s) { return s && s.submittedAt && s.report; }).map(function (s) {
             var flags = [];
             if (s.provisionedAt) { flags.push('provisioned'); }
             if (s.autoSubmitted) { flags.push('autoSubmitted'); }
             if (s.lineage.selfResets) { flags.push('selfReset:' + s.lineage.selfResets); }
             if (s.lineage.adminResets) { flags.push('adminReset:' + s.lineage.adminResets); }
             if (s.lineage.retakes) { flags.push('retake:' + s.lineage.retakes); }
+            if (s.standingOnly) { flags.push(s.standingOnly); }
             return { studentId: s.studentId, grade: s.report, flags: flags };
         }));
     }
@@ -661,7 +691,7 @@
         startExam: startExam, runCommand: runCommand, renderWindow: renderWindow, runAction: runAction, saveAnswer: saveAnswer,
         handover: handover, submitExam: submitExam, sweepExpired: sweepExpired, provision: provision,
         resetSession: resetSession, mayReset: mayReset, isAdmin: isAdmin, isOperator: isOperator,
-        gradebookEntry: gradebookEntry, instructorView: instructorView, handlerView: handlerView, resultsCsv: resultsCsv, totalsCsv: totalsCsv, examModeFlags: examModeFlags,
+        gradebookEntry: gradebookEntry, recordOf: recordOf, instructorView: instructorView, handlerView: handlerView, resultsCsv: resultsCsv, totalsCsv: totalsCsv, examModeFlags: examModeFlags,
         toDocument: toDocument, fromDocument: fromDocument, documentBytes: documentBytes, sameSitting: sameSitting,
         sessionIdFor: sessionIdFor, validUid: validUid, remainingMs: remainingMs, memoryStore: memoryStore,
         WRITE_LIMIT: WRITE_LIMIT

@@ -39,7 +39,11 @@ Every action is on the results page. The server enforces who may do what; the pa
      - To return the time the student lost, choose "Give back the time lost at the fault" and enter when the fault began.
      - A second restart of the same student needs the operator.
    - **A broken build**: the student may restart it themselves, up to twice, before handover. Their clock keeps running and penalties carry. Staff do nothing.
-   - **Never restart to give a second attempt.**
+   - **Staff never restart to give a second attempt.** Students retake on their own (below).
+   - **Student retakes (from 2026-11-09).** After submitting, a student may click **Retake the exam**: a new lab with a fresh 150-minute clock and fresh build restarts, while starts are open (armed and before 18:30 on 11-19, or allowlisted).
+     - The grade is the latest attempt the student **submits**. A retake that runs out its clock unsubmitted (auto-submitted by a sweep) does **not** replace the earlier grade.
+     - While a retake runs, the results page and CSV show the standing attempt, flagged `retakeInProgress`; after an abandoned one, `retakeAbandoned`. `retake:N` counts retakes.
+     - Disarming the window stops new starts and retakes together.
    - **Platform fault after handover or submit:** **Restart on a new lab.** It deals a different work order and fault with a fresh 150-minute clock (spec 13.19 item 1), because the student has already seen the old fault and its answers.
      - Use it only for a platform fault, with a fault code and evidence.
      - The new sitting's grade supersedes the old one; both attempts stay archived.

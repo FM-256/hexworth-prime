@@ -37,7 +37,11 @@
             'You have ' + minutes + ' minutes on the server clock. Refreshing the page resumes the same lab and the same clock.',
             'Build the workstation in this work order, then hand it over. Hand over by minute ' + handoverBy + ' (at least 40 minutes left): after handover a user ticket arrives on this PC, and you diagnose, fix, verify and record it.',
             'Handover is one way. Phases 1-6 are recorded as they stand at handover: a change that waits for a restart (a rename, a domain join, an update, BitLocker, the page file) counts only once the PC has restarted, so restart before you hand over. If Windows is not installed and set up when you hand over, Phase 7 and the incident record cannot be earned.',
-            'You may restart your build up to ' + (cap === 1 ? 'once' : cap === 2 ? 'twice' : cap + ' times') + ' before handover. Restarting gives no extra time and your clock keeps running; it is not a second attempt, and any penalty you already incurred (for example, damaging the archive disk) still counts. You submit once.',
+            'You may restart your build up to ' + (cap === 1 ? 'once' : cap === 2 ? 'twice' : cap + ' times') + ' before handover. Restarting keeps the same lab, gives no extra time and your clock keeps running, and any penalty you already incurred (for example, damaging the archive disk) still counts.',
+            /* retakes (operator, 2026-11-09): the latest attempt the student submits is the grade */
+            'After you submit, you may retake the exam on a new lab (a different work order and fault) with a fresh 150-minute clock' +
+                (EXAMS.windowFor(examId) ? ', until the exam closes on Thursday, November 19 at 6:30 pm Eastern' : '') +
+                '. The latest attempt you submit is your grade, even if it is lower. A retake you leave unfinished does not replace your grade. Each attempt has its own build restarts.',
             'There is no Dr. Hex, no course content and no hint system during the exam. Nothing on screen tells you whether a step is right.',
             'The lab host is Hyper-V. The fabric attaches the MER-ARCHIVE, MER-POOL1, MER-POOL2 and TECH-USB disks to the VM you create. TECH-USB appears as F: inside Windows and in the host\'s Lab Files panel. After setup, C:\\LabFiles on the PC holds the installation packages.',
             'Windows 11 version 24H2 (build 26100) is pinned for this exam. KB numbers are lab values.',
