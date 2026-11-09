@@ -403,24 +403,27 @@
         opts = opts || {};
         var session = fromDocument(await store.get(args.sessionId));
         if (!session) { throw err('not-found', 'No exam session. Start the exam first.'); }
-        if (session.submittedAt) { return { alreadySubmitted: true, submittedAt: session.submittedAt, report: session.report }; }
+        if (session.submittedAt) { return { alreadySubmitted: true, submittedAt: session.submittedAt, report: session.report, standing: standingReply(session) }; }
         var expectedRev = session.rev;
         var report = gradeOf(session);
         var t = nowMs(opts);
         report.durationUsedMs = Math.max(0, Math.min(Number(session.expiresAt), t) - Number(session.startedAt));
-        report.auto = !!args.auto;
+        /* a submit at or after the clock's end is the clock's, not the student's (the page submits
+         * itself at zero): an expired retake must not replace the grade (Nancy, retake confirm B) */
+        var auto = !!args.auto || !(Number(session.expiresAt) > t);
+        report.auto = auto;
         session.report = report;
         session.submittedAt = t;
-        session.autoSubmitted = !!args.auto;
+        session.autoSubmitted = auto;
         session.rev = expectedRev + 1;
         var wrote = await store.putIfRev(args.sessionId, toDocument(session), expectedRev);
         if (!wrote) {
             var fresh = fromDocument(await store.get(args.sessionId));
-            if (fresh && fresh.submittedAt) { return { alreadySubmitted: true, submittedAt: fresh.submittedAt, report: fresh.report }; }
+            if (fresh && fresh.submittedAt) { return { alreadySubmitted: true, submittedAt: fresh.submittedAt, report: fresh.report, standing: standingReply(fresh) }; }
             throw err('aborted', 'The exam session changed while submitting. Retry.');
         }
         await notifyGraded(session, opts);
-        return { submitted: true, submittedAt: session.submittedAt, report: report };
+        return { submitted: true, submittedAt: session.submittedAt, report: report, standing: standingReply(session) };
     }
 
     /* After a grade is durably stored, tell the gradebook writer. A failure is logged, never undoes

@@ -565,6 +565,17 @@ async function rejects(p, code, label) {
         const done = EXAM.fromDocument(await g.st.get(g.sid));
         t.check(EXAM.recordOf(done) === done && g.graded.length === gradedBefore + 1, 'a submitted retake is the grade and reaches the gradebook');
         t.check((await EXAM.startExam(g.st, { studentId: 'rt-a', examId: EX }, g.o)).standing === null, 'and the student is shown no other standing grade');
+        /* the page submits itself at zero: that is the clock's submit, not the student's (Nancy B) */
+        g.c.set(done.submittedAt + 1000);
+        await EXAM.resetSession(g.st, Object.assign({ retake: true }, me), g.o);
+        const late = EXAM.fromDocument(await g.st.get(g.sid));
+        g.c.set(late.expiresAt);
+        const zero = await EXAM.submitExam(g.st, { sessionId: g.sid }, g.o);
+        const zs = EXAM.fromDocument(await g.st.get(g.sid));
+        t.check(zs.autoSubmitted && EXAM.recordOf(zs).submittedAt === done.submittedAt && zero.standing && zero.standing.why === 'attemptAbandoned',
+            'a submit at the clock\'s end is not the student\'s: the earlier grade stands, and the submit reply says so');
+        const again2 = await EXAM.submitExam(g.st, { sessionId: g.sid }, g.o);
+        t.check(again2.alreadySubmitted && again2.standing && again2.standing.why === 'attemptAbandoned', 'an already-submitted reply carries the standing grade too');
     }
     {
         /* an admin new lab voids a submitted attempt for a platform fault: it never stands (Nancy #3) */

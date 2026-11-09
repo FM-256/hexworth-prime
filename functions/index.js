@@ -11782,7 +11782,7 @@ exports.mdfinalSubmit = onCall(mdfinalOpts, mdfinalCall(async (c) => {
     const res = await c.MD.submitExam(c.store, { sessionId: c.sessionId }, c.opts);
     const GR = require('./mdfinal/mdfinal-grade.js');
     return { submitted: !res.alreadySubmitted, alreadySubmitted: !!res.alreadySubmitted, submittedAt: res.submittedAt,
-             report: GR.studentReport(res.report) };
+             report: GR.studentReport(res.report), standing: res.standing || null };
 }));
 
 /* Validates a target uid from a staff request. */
