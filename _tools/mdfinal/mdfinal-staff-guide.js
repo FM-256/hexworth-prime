@@ -5,7 +5,7 @@
  * @catalog what    Writes the staff-only step-by-step walkthrough (GUI path, command path, the four P7
  * @catalog what    faults, P8) for the MD-100 final. Every step is EXECUTED against the engine on every
  * @catalog what    profile x variant class plus random seeds, and must score 100, before a line is written.
- * @catalog run     node _tools/mdfinal/mdfinal-staff-guide.js [--seeds N] [--out <file.md>]
+ * @catalog run     node _tools/mdfinal/mdfinal-staff-guide.js [--seeds N] [--out <file.md>]   (also writes <file>.html with pandoc)
  * @catalog status  TOOL
  *
  * WHY STEPS ARE DATA. A hand-written walkthrough drifts from the engine the first time either
@@ -596,3 +596,39 @@ L.push('');
 
 fs.writeFileSync(OUT, L.join('\n'));
 console.log('wrote ' + OUT + ' (' + L.length + ' lines)');
+
+/* The HTML copy beside it, made with pandoc like the other Solutions walkthroughs, from the same
+ * Markdown so the two cannot differ. Full width (no narrow column), tables ruled, a contents list. */
+const HTML = OUT.replace(/\.md$/, '') + '.html';
+const STYLE = [
+    '<style>',
+    ':root { --fg: #1b1f24; --bg: #ffffff; --muted: #57606a; --rule: #d0d7de; --code: #f3f5f7; --warn: #8a1c1c; --warnbg: #fdecec; }',
+    '@media (prefers-color-scheme: dark) { :root { --fg: #e6edf3; --bg: #0d1117; --muted: #9da7b1; --rule: #30363d; --code: #161b22; --warn: #ffb4b4; --warnbg: #3a1416; } }',
+    'html { background: var(--bg); }',
+    'body { max-width: none; margin: 0; padding: 24px clamp(16px, 4vw, 48px); color: var(--fg); background: var(--bg); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }',
+    'h1 { font-size: 1.8em; margin-top: 0; } h2 { border-bottom: 1px solid var(--rule); padding-bottom: 4px; margin-top: 2em; } h3 { margin-top: 1.6em; }',
+    'code { background: var(--code); padding: 1px 4px; border-radius: 4px; font-size: 0.92em; white-space: pre-wrap; overflow-wrap: anywhere; }',
+    'table { border-collapse: collapse; width: 100%; margin: 1em 0; display: block; overflow-x: auto; } th, td { border: 1px solid var(--rule); padding: 6px 10px; text-align: left; vertical-align: top; } th { background: var(--code); }',
+    'ol li, ul li { margin: 4px 0; } a { color: inherit; }',
+    '#TOC { border: 1px solid var(--rule); border-radius: 6px; padding: 8px 16px; margin: 1em 0; } #TOC ul { margin: 4px 0; }',
+    '.staff-only { background: var(--warnbg); color: var(--warn); border: 1px solid var(--warn); border-radius: 6px; padding: 10px 14px; font-weight: 600; }',
+    '@media print { #TOC { display: none; } body { padding: 0; } }',
+    '</style>'
+].join('\n');
+try {
+    const os = require('os');
+    const head = path.join(os.tmpdir(), 'mdfinal-guide-head-' + process.pid + '.html');
+    fs.writeFileSync(head, STYLE);
+    require('child_process').execFileSync('pandoc', [OUT, '-f', 'gfm', '-t', 'html5', '-s', '--toc', '--toc-depth=3',
+        '--metadata', 'pagetitle=MD-100 Final Staff Walkthrough', '-H', head, '-o', HTML]);
+    fs.unlinkSync(head);
+    /* the staff-only line as a banner, so it cannot be missed on screen or on paper */
+    let h = fs.readFileSync(HTML, 'utf8').replace('<p><strong>STAFF ONLY.', '<p class="staff-only"><strong>STAFF ONLY.');
+    /* pandoc puts the contents above the title and lists the title itself: move it below the
+     * opening notes (the banner reads first) and keep only the sections under the title */
+    const nav = h.match(/<nav id="TOC" role="doc-toc">\n<ul>\n<li><a [^>]*>[\s\S]*?<\/a>\n(<ul>[\s\S]*<\/ul>)<\/li>\n<\/ul>\n<\/nav>\n/);
+    if (!nav || h.indexOf('<h2 id="how-to-use-it">') < 0) { throw new Error('contents list or first section not where expected'); }
+    h = h.replace(nav[0], '').replace('<h2 id="how-to-use-it">', '<nav id="TOC" role="doc-toc">\n<strong>Contents</strong>\n' + nav[1] + '\n</nav>\n<h2 id="how-to-use-it">');
+    fs.writeFileSync(HTML, h);
+    console.log('wrote ' + HTML);
+} catch (e) { console.log('HTML not written (pandoc: ' + e.message.split('\n')[0] + '); the Markdown is complete.'); process.exitCode = 1; }
