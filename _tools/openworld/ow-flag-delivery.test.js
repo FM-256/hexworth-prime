@@ -62,9 +62,33 @@ function fakeAuth(signedIn, hang, refuse) {
     /* fresh state */
     await go(BOX + 'index.html'); await page.evaluate(() => localStorage.clear());
 
+    /* 0. locked cards (operator, 2026-11-12): all eight show from the start, with light hints */
+    await go(BOX + 'caseboard.html');
+    const cards0 = await page.$$eval('.cb-conn', (els) => els.map((e) => ({ locked: e.classList.contains('locked'), text: e.textContent, btn: !!e.querySelector('.cb-conn-btn') })));
+    check('fresh board: all 8 connections show, all locked, none confirmable', cards0.length === 8 && cards0.every((c) => c.locked && !c.btn), JSON.stringify(cards0.map((c) => c.text.slice(0, 40))));
+    const id0 = cards0.find((c) => /Identity Link/.test(c.text));
+    check('a locked card names only the pages (Exchange, Comms), not the items', id0 && /something on Exchange/.test(id0.text) && /something on Comms/.test(id0.text) && !/KYC|Username|Marcus|Discord/.test(id0.text), id0 && id0.text);
+    const fo0 = cards0.find((c) => /Fund Flow Origin/.test(c.text));
+    /* both Fund Flow Origin pieces are filed under the explorer page, whose nav label is "Blockchain" */
+    const mt0 = cards0.find((c) => /Mixer Timing/.test(c.text));
+    check('page names are the nav labels students see (Blockchain, Fund Flow)', fo0 && (fo0.text.match(/something on Blockchain/g) || []).length === 2 && mt0 && /something on Fund Flow/.test(mt0.text), (fo0 && fo0.text) + ' | ' + (mt0 && mt0.text));
+
+    /* every hint names a page that really has that item's pin (derived from the page files) */
+    {
+        const CB = fs.readFileSync(path.join(APP, BOX, 'caseboard.html'), 'utf8');
+        const reqs = [...CB.matchAll(/requires: \[([^\]]+)\]/g)].flatMap((m) => m[1].match(/'[^']+'/g).map((x) => x.slice(1, -1)));
+        const hints = await page.evaluate((ids) => ids.map((r) => { const ev = DeadDropConfig.evidence[r]; const pid = PIN_PAGE[r] || (ev && ev.source); return [r, pid]; }), [...new Set(reqs)]);
+        const bad = hints.filter(([r, pid]) => { const f = path.join(APP, BOX, pid + '.html'); return !fs.existsSync(f) || fs.readFileSync(f, 'utf8').indexOf(r) < 0; });
+        check('all ' + hints.length + ' hints point at the page that has the pin', hints.length === 12 && bad.length === 0, JSON.stringify(bad));
+    }
+
     /* 1. the student path: pin on Exchange, pin on Comms */
     await go(BOX + 'exchange.html');
     await page.evaluate(() => { const el = [...document.querySelectorAll('[onclick]')].find((e) => /pin\('ex-kyc-name'\)/.test(e.getAttribute('onclick'))); el.click(); });
+    /* half-pinned: the card shows what is pinned and where the rest is, still locked */
+    await go(BOX + 'caseboard.html');
+    const half = await identityCard();
+    check('half-pinned: shows "KYC Identity", still needs something on Comms, still locked', /KYC Identity/.test(half) && /something on Comms/.test(half) && /\(locked\)/.test(half) && !/Confirm Connection/.test(half), half);
     await go(BOX + 'comms.html');
     await page.evaluate(() => { const el = [...document.querySelectorAll('[onclick]')].find((e) => /pinMsg\(\\?'dc-username-match\\?'\)/.test(e.getAttribute('onclick'))); el.click(); });
     const pinned = await page.evaluate(() => engine.state.pinnedEvidence.map((e) => e.id));

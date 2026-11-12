@@ -19,7 +19,8 @@
         .cb-connections { display: grid; grid-template-columns: 1fr; gap: 10px; }
         .cb-conn { background: var(--ow-surface); border: 1px solid var(--ow-border); border-radius: 8px; padding: 14px; }
         .cb-conn.found { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.04); }
-        .cb-conn.locked { opacity: 0.4; }
+        .cb-conn.locked { opacity: 0.7; border-style: dashed; }
+        .cb-conn-ev-tag.need { color: var(--ow-amber); border-color: rgba(245,158,11,0.35); border-style: dashed; }
         .cb-conn-label { font-size: 0.78rem; font-weight: bold; color: var(--ow-text-bright); margin-bottom: 6px; }
         .cb-conn-desc { font-size: 0.7rem; color: var(--ow-text-dim); margin-bottom: 8px; }
         .cb-conn-evidence { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -117,11 +118,11 @@ function renderConnections() {
     const found = engine.state.connections.map(c => c.id);
     const pinned = engine.state.pinnedEvidence.map(e => e.id);
 
-    // Only show connections where BOTH required evidence items are pinned (or already confirmed)
-    const visible = CONNECTIONS.filter(conn => {
-        if (found.includes(conn.id)) return true; // Already confirmed — always show
-        return conn.requires.every(r => pinned.includes(r)); // Both pieces pinned — reveal
-    });
+    // All eight show (operator, 2026-11-12: a connection that stayed invisible until both pins were
+    // in left students stuck below 8 / 8 with no clue). A locked card gives a LIGHT hint only: its
+    // short name, the pieces already pinned, and for each missing piece just the page it is on,
+    // never which item. The description and the Confirm button appear once both pieces are pinned.
+    const visible = CONNECTIONS;
 
     if (visible.length === 0) {
         document.getElementById('connList').innerHTML =
@@ -133,6 +134,7 @@ function renderConnections() {
     } else {
         document.getElementById('connList').innerHTML = visible.map(conn => {
             const isFound = found.includes(conn.id);
+            if (!isFound && !conn.requires.every(r => pinned.includes(r))) { return lockedCard(conn, pinned); }
             return '<div class="cb-conn' + (isFound ? ' found' : '') + '">' +
                 '<div class="cb-conn-label">' +
                     (isFound ? '<img src="/assets/images/icons/icon-checkmark.webp" alt="" width="14" height="14" style="vertical-align:middle;margin-right:4px;">' : '<img src="/assets/images/icons/icon-warning.webp" alt="" width="14" height="14" style="vertical-align:middle;margin-right:4px;opacity:0.6;">') +
@@ -151,6 +153,26 @@ function renderConnections() {
     // Update progress
     document.getElementById('connProgress').textContent = found.length + ' / 8';
     document.getElementById('connBar').style.width = (found.length / 8 * 100) + '%';
+}
+
+/* Where an item's pin actually is, when that differs from the evidence's `source` (which labels what
+   the evidence is about, shown in the sidebar). The exchange destination is evidence ABOUT the
+   exchange but is pinned on the Fund Flow page. ow-flag-delivery.test.js checks every hint. */
+const PIN_PAGE = { 'bx-exchange-dest': 'mixer' };
+
+/* A connection not yet unlocked: its name, what is pinned, and the page each missing piece is on. */
+function lockedCard(conn, pinned) {
+    const pageLabel = (id) => { const pg = (DeadDropConfig.pages || []).find(p => p.id === id); return pg ? pg.label : 'another device'; };
+    const tags = conn.requires.map((r, i) => {
+        if (pinned.includes(r)) { return '<span class="cb-conn-ev-tag has">' + engine._esc(conn.requireLabels[i]) + '</span>'; }
+        const ev = DeadDropConfig.evidence[r];
+        return '<span class="cb-conn-ev-tag need">Still needed: something on ' + engine._esc(pageLabel(PIN_PAGE[r] || (ev && ev.source))) + '</span>';
+    }).join('');
+    return '<div class="cb-conn locked">' +
+        '<div class="cb-conn-label"><img src="/assets/images/icons/icon-lock.webp" alt="" width="14" height="14" style="vertical-align:middle;margin-right:4px;">' +
+            engine._esc(conn.label) + ' <span style="font-weight:normal;color:var(--ow-text-dim);">(locked)</span></div>' +
+        '<div class="cb-conn-evidence">' + tags + '</div>' +
+    '</div>';
 }
 
 function getDeliveredFlagHtml(connId) {
