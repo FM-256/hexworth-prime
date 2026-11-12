@@ -24,8 +24,9 @@
  *
  * - NOT on server-graded assessment pages (a quiz, an exam, the finals): content pushed down
  *   mid-question can move a Submit button under a student's cursor (Nancy, 2026-11-12). A page is
- *   one when its inline scripts call a grading function (ASSESSMENT_RE). Do not schedule
- *   maintenance during an exam: the banner will not be there to warn its students.
+ *   one when its inline scripts call a grading function (ASSESSMENT_RE) OR it loads a script that
+ *   does (GRADER_SRC_RE: QuizEngine.js alone serves 400+ quiz pages with no inline call). Do not
+ *   schedule maintenance during an exam: the banner will not be there to warn its students.
  *
  * Firestore fields: active (bool), level ('info' | 'warning'), message (<= 280 chars),
  * endsAt (ms epoch or null: clears itself at that time), updatedAt (ms epoch, the version).
@@ -47,12 +48,16 @@
     /* The grading calls that mark a server-graded assessment page; the test checks this finds every
      * page the same pattern finds in the repo. */
     var ASSESSMENT_RE = /gradeQuiz|mdfinalStart|netfinalStart|gradeExam|callFunction\('grade/;
+    /* The shared scripts that make those calls. The test lists every _app script matching
+     * ASSESSMENT_RE and fails if one is missing here, so a new quiz engine cannot slip past. */
+    var GRADER_SRC_RE = /\/(QuizEngine|quiz-engine|InstantQuizGrader|InlineQuizShuffler|CaseRoomGrading|PFIProjectGrader)\.js(\?|#|$)/;
 
-    /* True on a server-graded quiz or exam page (judged from its inline scripts). */
+    /* True on a server-graded quiz or exam page: an inline script calls grading, or the page loads
+     * a script that does. */
     function isAssessmentPage() {
         var s = document.scripts;
         for (var i = 0; i < s.length; i++) {
-            if (!s[i].src && ASSESSMENT_RE.test(s[i].textContent || '')) { return true; }
+            if (s[i].src ? GRADER_SRC_RE.test(s[i].src) : ASSESSMENT_RE.test(s[i].textContent || '')) { return true; }
         }
         return false;
     }
@@ -220,6 +225,6 @@
         else { document.addEventListener('DOMContentLoaded', go); }
     }
 
-    window.SiteNotice = { refresh: refresh, _parse: parse, _shouldShow: shouldShow, _isAssessmentPage: isAssessmentPage, ASSESSMENT_RE: ASSESSMENT_RE, CACHE_KEY: CACHE_KEY, DISMISS_KEY: DISMISS_KEY };
+    window.SiteNotice = { refresh: refresh, _parse: parse, _shouldShow: shouldShow, _isAssessmentPage: isAssessmentPage, ASSESSMENT_RE: ASSESSMENT_RE, GRADER_SRC_RE: GRADER_SRC_RE, CACHE_KEY: CACHE_KEY, DISMISS_KEY: DISMISS_KEY };
     start();
 })();

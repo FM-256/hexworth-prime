@@ -226,7 +226,8 @@ const PINNED = '<!doctype html><html><head><meta charset="utf-8"></head><body st
 
     /* 14d. server-graded assessment pages: no banner and no read (content must not move mid-question) */
     stubGuard = true;
-    for (const p of ['/houses/forge/md-100/exams/md100-final.exam.html', '/houses/eye/applets/cyberops/week1/eye-evaluation.applet.html', '/dark-arts/vault/bug-hunting/quizzes/bh-quiz-xssi.html']) {
+    for (const p of ['/houses/forge/md-100/exams/md100-final.exam.html', '/houses/eye/applets/cyberops/week1/eye-evaluation.applet.html', '/dark-arts/vault/bug-hunting/quizzes/bh-quiz-xssi.html',
+        '/houses/key/quizzes/key-pqc.quiz.html', '/houses/cloud/modules/wsa/m10-group-policy/cloud-quizquiz.module.html']) {
         if (!fs.existsSync(path.join(APP, p))) { check(p + ' exists', false); continue; }
         reply = { status: 200, body: restDoc(ON) }; await load(p, { wait: 2500 });
         const here = new URL(page.url()).pathname === p;
@@ -241,19 +242,32 @@ const PINNED = '<!doctype html><html><head><meta charset="utf-8"></head><body st
     check('control: an ordinary protected page with the same stub shows the banner', new URL(page.url()).pathname === '/houses/web/index.html' && b.length === 1, 'at=' + page.url() + ' bars=' + b.length);
     stubGuard = false;
 
-    /* 14e. parity: the browser-side check finds every server-graded page the repo search finds */
+    /* 14e. parity, derived from the repo rather than from SiteNotice's own lists:
+     *  (a) every _app script that calls grading is matched by GRADER_SRC_RE (a new quiz engine fails here);
+     *  (b) every page that calls grading inline OR loads one of those scripts is excluded by the
+     *      browser-side rule, and no other page is. Prose-only mentions are not assessments. */
     {
         const SN = fs.readFileSync(path.join(APP, 'components/SiteNotice.js'), 'utf8');
         const re = new RegExp(SN.match(/var ASSESSMENT_RE = \/(.+)\/;/)[1]);
-        const all = []; (function walk(d) { for (const f of fs.readdirSync(d)) { const q = path.join(d, f); const st = fs.statSync(q); if (st.isDirectory()) walk(q); else if (f.endsWith('.html')) all.push(q); } })(APP);
-        const inFile = all.filter((f) => re.test(fs.readFileSync(f, 'utf8')));
-        const inline = (f) => (fs.readFileSync(f, 'utf8').match(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/g) || []).some((x) => re.test(x));
-        /* a page may differ only when the match is prose (text or an HTML comment), never in a script tag or a script src */
-        const inAnyScript = (f) => (fs.readFileSync(f, 'utf8').match(/<script[^>]*>[\s\S]*?<\/script>/g) || []).some((x) => re.test(x));
-        const prose = inFile.filter((f) => !inline(f) && !inAnyScript(f));
-        const missed = inFile.filter((f) => !inline(f) && inAnyScript(f)).map((f) => path.relative(APP, f));
-        const caught = inFile.length - prose.length;
-        check('parity: all ' + caught + ' pages with a grading call in a script are caught (' + prose.length + ' only mention it in prose: ' + prose.map((f) => path.basename(f)).join(', ') + ')', caught > 150 && missed.length === 0, 'missed: ' + missed.slice(0, 5).join(', '));
+        const srcRe = new RegExp(SN.match(/var GRADER_SRC_RE = \/(.+)\/;/)[1]);
+        const files = []; (function walk(d) { for (const f of fs.readdirSync(d)) { const q = path.join(d, f); const st = fs.statSync(q); if (st.isDirectory()) walk(q); else files.push(q); } })(APP);
+        const graders = files.filter((f) => f.endsWith('.js') && !f.endsWith('components/SiteNotice.js') && re.test(fs.readFileSync(f, 'utf8')));
+        const unmatched = graders.filter((f) => !srcRe.test('/' + path.relative(APP, f)));
+        check('(a) all ' + graders.length + ' grading scripts in _app are in GRADER_SRC_RE (' + graders.map((f) => path.basename(f)).join(', ') + ')', graders.length >= 4 && unmatched.length === 0, 'missing: ' + unmatched.map((f) => path.relative(APP, f)).join(', '));
+        const graderNames = new Set(graders.map((f) => path.basename(f)));
+        const pages = files.filter((f) => f.endsWith('.html'));
+        let expected = 0; const wrong = [];
+        for (const f of pages) {
+            const h = fs.readFileSync(f, 'utf8');
+            const tags = h.match(/<script[^>]*>[\s\S]*?<\/script>/g) || [];
+            const srcs = tags.map((t) => (t.match(/\bsrc=["']([^"']+)["']/) || [])[1]).filter(Boolean);
+            const inlineHit = tags.some((t) => !/\bsrc=/.test(t.slice(0, t.indexOf('>'))) && re.test(t));
+            const isAssess = inlineHit || srcs.some((u) => graderNames.has(path.basename(u.split(/[?#]/)[0])));
+            const ruleSays = inlineHit || srcs.some((u) => srcRe.test(new URL(u, 'http://x/' + path.relative(APP, f)).pathname));
+            if (isAssess) expected++;
+            if (isAssess !== ruleSays) wrong.push(path.relative(APP, f) + (isAssess ? ' (missed)' : ' (wrongly excluded)'));
+        }
+        check('(b) the rule excludes exactly the ' + expected + ' assessment pages, no more, no fewer', expected > 500 && wrong.length === 0, wrong.slice(0, 5).join(', '));
     }
 
     /* 15. the API key matches FirebaseAuth.js */
