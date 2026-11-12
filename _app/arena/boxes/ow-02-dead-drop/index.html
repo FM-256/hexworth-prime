@@ -145,19 +145,27 @@
     }
     updateProgress();
     window.onOpenWorldStateChange = function() { updateProgress(); };
-    document.getElementById('submitBtn').addEventListener('click', function() {
+    document.getElementById('submitBtn').addEventListener('click', async function() {
+        /* submitAnswer validates FLAG{} strings server-side and returns a Promise (it was read
+           synchronously here, so every submission showed "Incorrect"); same pattern as OW-01 */
         var answer = document.getElementById('answerInput').value.trim();
         if (!answer) return;
-        var result = engine.submitAnswer(answer);
         var fb = document.getElementById('submitFeedback');
-        if (result.correct) {
-            fb.innerHTML = '<span style="color:var(--ow-green);font-weight:bold;">CORRECT. Investigation complete. Score: ' + result.score + '</span>';
-            updateProgress();
-        } else {
-            var msg = '<span style="color:var(--ow-accent);">Incorrect.</span>';
-            if (result.hint) msg += ' <span style="color:var(--ow-amber);">' + engine._esc(result.hint) + '</span>';
-            msg += ' <span style="color:var(--ow-text-dim);">(Attempt ' + result.attempts + ', -50 pts)</span>';
-            fb.innerHTML = msg;
+        fb.innerHTML = '<span style="color:var(--ow-text-dim);">Validating...</span>';
+        try {
+            var result = await engine.submitAnswer(answer);
+            if (result.correct) {
+                fb.innerHTML = '<span style="color:var(--ow-green);font-weight:bold;">FLAG ACCEPTED: ' + engine._esc(result.flagId) + ' [+200 pts]</span>';
+                document.getElementById('answerInput').value = '';
+                updateProgress();
+            } else {
+                var msg = '<span style="color:var(--ow-accent);">Invalid flag.</span>';
+                if (result.hint) msg += ' <span style="color:var(--ow-amber);">' + engine._esc(result.hint) + '</span>';
+                if (result.error) msg += ' <span style="color:var(--ow-amber);">' + engine._esc(result.error) + '</span>';
+                fb.innerHTML = msg;
+            }
+        } catch (e) {
+            fb.innerHTML = '<span style="color:var(--ow-accent);">Error: ' + engine._esc(e.message) + '</span>';
         }
     });
     document.getElementById('answerInput').addEventListener('keydown', function(e) {

@@ -61,6 +61,10 @@ class OpenWorldEngine {
         // Save before unload
         window.addEventListener('beforeunload', () => this.save());
 
+        // Flags confirmed earlier but never delivered (any failed request, and every request
+        // before 2026-11-12, see ensureAuth) are fetched again on every page load.
+        this.deliverPendingFlags();
+
         // God mode hotkey
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.shiftKey && e.key === 'G') {
@@ -327,8 +331,54 @@ class OpenWorldEngine {
     }
 
     /**
+     * Makes sure FirebaseAuth is on the page and its sign-in state has settled. Resolves true when
+     * a user is signed in.
+     * Why: no Open World page includes FirebaseAuth.js. Flags moved server-side in April 2026
+     * (4e42ab1fc, 6056cef5b) but the pages were never given the script, so `typeof FirebaseAuth`
+     * was always 'undefined' and every flag request returned null without calling the server:
+     * the CaseBoard sat on "Flag loading from server..." for good. The engine loads it once here,
+     * for all twelve OW/OWS boxes, rather than every page carrying its own tag.
+     */
+    ensureAuth() {
+        if (!window.__owAuthReady) {
+            window.__owAuthReady = new Promise(function (resolve) {
+                if (typeof FirebaseAuth !== 'undefined') { resolve(true); return; }
+                var s = document.createElement('script');
+                s.src = '/components/FirebaseAuth.js';
+                s.onload = function () { resolve(typeof FirebaseAuth !== 'undefined'); };
+                s.onerror = function () { resolve(false); };
+                document.head.appendChild(s);
+            }).then(function (loaded) {
+                if (!loaded) return false;
+                /* waitForAuth runs init() itself: an injected script misses its DOMContentLoaded auto-init */
+                return FirebaseAuth.waitForAuth().then(function (user) { return !!user; }, function () { return false; });
+            });
+        }
+        return window.__owAuthReady;
+    }
+
+    /**
+     * Requests every flag whose connection is confirmed but whose text never arrived, then tells
+     * the page to re-render. Safe to call repeatedly; already delivered flags are skipped.
+     */
+    async deliverPendingFlags() {
+        var fc = this.cfg.flagConnections || {};
+        var delivered = (this.state && this.state.deliveredFlags) || {};
+        var pending = (this.state && this.state.connections || [])
+            .map(function (c) { return fc[c.id]; })
+            .filter(function (flagId) { return flagId && !delivered[flagId]; });
+        if (!pending.length) return;
+        var got = 0;
+        for (var i = 0; i < pending.length; i++) {
+            if (await this.requestFlag(pending[i])) got++;
+        }
+        if (got && window.onOpenWorldStateChange) window.onOpenWorldStateChange(this.state);
+    }
+
+    /**
      * Request a flag from the server via deliverFlag Cloud Function.
-     * Returns the FLAG{xxxxx} text for display to the student.
+     * Returns the FLAG{xxxxx} text for display to the student, or null (not signed in, refused,
+     * or offline; deliverPendingFlags retries on the next page load).
      */
     async requestFlag(flagId) {
         var boxId = this.cfg.registryId;
@@ -339,8 +389,22 @@ class OpenWorldEngine {
             return this.state.deliveredFlags[flagId];
         }
 
+        // One request per flag at a time: addConnection() and the CaseBoard's makeConnection()
+        // both ask for the same flag on one click, which was two deliverFlag calls.
+        if (!this._flagRequests) this._flagRequests = {};
+        if (this._flagRequests[flagId]) return this._flagRequests[flagId];
+        var self = this;
+        this._flagRequests[flagId] = this._fetchFlag(boxId, flagId).then(function (text) {
+            delete self._flagRequests[flagId];
+            return text;
+        });
+        return this._flagRequests[flagId];
+    }
+
+    /** The deliverFlag call itself (requestFlag shares one in-flight call per flag). */
+    async _fetchFlag(boxId, flagId) {
         try {
-            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+            if (await this.ensureAuth()) {
                 var result = await FirebaseAuth.callFunction('deliverFlag', { boxId: boxId, flagId: flagId });
                 var data = result.data || result;
                 if (data.flagText) {
@@ -364,7 +428,7 @@ class OpenWorldEngine {
         if (!boxId || !flagStr) return { correct: false };
 
         try {
-            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+            if (await this.ensureAuth()) {
                 var result = await FirebaseAuth.callFunction('validateFlag', {
                     boxId: boxId,
                     submission: flagStr

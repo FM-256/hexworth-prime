@@ -71,7 +71,29 @@
 (function() {
     function u() { var p = engine.getProgress(); document.getElementById('pinnedCount').textContent = p.pinned; document.getElementById('pinnedBar').style.width = Math.min(100, p.pinned * 5) + '%'; document.getElementById('connCount').textContent = p.connections + ' / 8'; document.getElementById('connBar').style.width = (p.connections / 8 * 100) + '%'; if (p.canSubmit) { document.getElementById('submitLock').style.display = 'none'; document.getElementById('submitForm').style.display = 'block'; } if (p.completed) { document.getElementById('submitForm').innerHTML = '<div style="color:var(--ow-green);font-size:1.1rem;font-weight:bold;">INVESTIGATION COMPLETE</div><div style="color:var(--ow-text-dim);margin-top:6px;">Score: ' + p.score + '</div>'; } }
     u(); window.onOpenWorldStateChange = function() { u(); };
-    document.getElementById('submitBtn').addEventListener('click', function() { var a = document.getElementById('answerInput').value.trim(); if (!a) return; var r = engine.submitAnswer(a); var fb = document.getElementById('submitFeedback'); if (r.correct) { fb.innerHTML = '<span style="color:var(--ow-green);font-weight:bold;">CORRECT. Score: ' + r.score + '</span>'; u(); } else { fb.innerHTML = '<span style="color:var(--ow-accent);">Incorrect.</span>' + (r.hint ? ' <span style="color:var(--ow-amber);">' + engine._esc(r.hint) + '</span>' : '') + ' <span style="color:var(--ow-text-dim);">(Attempt ' + r.attempts + ')</span>'; } });
+    document.getElementById('submitBtn').addEventListener('click', async function() {
+        /* submitAnswer validates FLAG{} strings server-side and returns a Promise (it was read
+           synchronously here, so every submission showed "Incorrect"); same pattern as OW-01 */
+        var answer = document.getElementById('answerInput').value.trim();
+        if (!answer) return;
+        var fb = document.getElementById('submitFeedback');
+        fb.innerHTML = '<span style="color:var(--ow-text-dim);">Validating...</span>';
+        try {
+            var result = await engine.submitAnswer(answer);
+            if (result.correct) {
+                fb.innerHTML = '<span style="color:var(--ow-green);font-weight:bold;">FLAG ACCEPTED: ' + engine._esc(result.flagId) + ' [+200 pts]</span>';
+                document.getElementById('answerInput').value = '';
+                u();
+            } else {
+                var msg = '<span style="color:var(--ow-accent);">Invalid flag.</span>';
+                if (result.hint) msg += ' <span style="color:var(--ow-amber);">' + engine._esc(result.hint) + '</span>';
+                if (result.error) msg += ' <span style="color:var(--ow-amber);">' + engine._esc(result.error) + '</span>';
+                fb.innerHTML = msg;
+            }
+        } catch (e) {
+            fb.innerHTML = '<span style="color:var(--ow-accent);">Error: ' + engine._esc(e.message) + '</span>';
+        }
+    });
     document.getElementById('answerInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('submitBtn').click(); });
 })();
 </script>
