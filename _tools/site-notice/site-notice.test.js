@@ -50,7 +50,12 @@ const PINNED = '<!doctype html><html><head><meta charset="utf-8"></head><body st
 (async () => {
     const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
     const page = await browser.newPage();
-    let reply = { status: 200, body: restDoc(ON) }, fsHits = 0, scriptHits = 0, pageErrors = [];
+    let reply = { status: 200, body: restDoc(ON) }, fsHits = 0, scriptHits = 0, pageErrors = [], stubGuard = false;
+    /* An AccessGuard that lets everyone in but keeps the real file's site-notice loader, so a
+     * protected page renders for a signed-out test visitor exactly as it would for a student. */
+    const AG = fs.readFileSync(path.join(APP, 'components/AccessGuard.js'), 'utf8');
+    const GUARD_STUB = 'window.AccessGuard = new Proxy({}, { get: function () { return function () { return true; }; } });\n' +
+        AG.slice(AG.indexOf('// ── Site Notice Auto-Loader'), AG.indexOf('// ── Tenant Auto-Loaders'));
     page.on('pageerror', (e) => pageErrors.push(String(e)));
     await page.setRequestInterception(true);
     page.on('request', (req) => {
@@ -62,6 +67,7 @@ const PINNED = '<!doctype html><html><head><meta charset="utf-8"></head><body st
         }
         if (u.startsWith(ORIGIN)) {
             const p = decodeURIComponent(new URL(u).pathname);
+            if (stubGuard && p === '/components/AccessGuard.js') { return req.respond({ status: 200, contentType: 'application/javascript', body: GUARD_STUB }); }
             if (p === '/__fixture.html') { return req.respond({ status: 200, contentType: 'text/html', body: FIXTURE }); }
             if (p === '/__both.html') { return req.respond({ status: 200, contentType: 'text/html', body: BOTH }); }
             if (p === '/__blank.html') { return req.respond({ status: 200, contentType: 'text/html', body: '<!doctype html><title>blank</title>' }); }
@@ -216,6 +222,38 @@ const PINNED = '<!doctype html><html><head><meta charset="utf-8"></head><body st
         const after = await p3.$$eval('#hx-site-notice', (e) => e.length);
         check('blocked storage: shows, dismisses for this page, no page error', n === 1 && after === 0 && errs.length === 0, 'n=' + n + ' after=' + after + ' ' + errs.join('|'));
         await p3.close();
+    }
+
+    /* 14d. server-graded assessment pages: no banner and no read (content must not move mid-question) */
+    stubGuard = true;
+    for (const p of ['/houses/forge/md-100/exams/md100-final.exam.html', '/houses/eye/applets/cyberops/week1/eye-evaluation.applet.html', '/dark-arts/vault/bug-hunting/quizzes/bh-quiz-xssi.html']) {
+        if (!fs.existsSync(path.join(APP, p))) { check(p + ' exists', false); continue; }
+        reply = { status: 200, body: restDoc(ON) }; await load(p, { wait: 2500 });
+        const here = new URL(page.url()).pathname === p;
+        const loads = await page.evaluate(() => performance.getEntriesByType('resource').filter((e) => /\/components\/SiteNotice\.js$/.test(e.name)).length);
+        b = await bars();
+        /* must stay on the page (else nothing was tested), must have loaded the script, and must show nothing */
+        check('assessment page ' + p.split('/').pop() + ': stays, loads the script, no banner, no read', here && loads === 1 && b.length === 0 && fsHits === 0, 'at=' + new URL(page.url()).pathname + ' loads=' + loads + ' bars=' + b.length + ' reads=' + fsHits);
+    }
+    /* control: the same stubbed guard on an ordinary page still shows the banner */
+    reply = { status: 200, body: restDoc(ON) }; await load('/houses/web/index.html', { wait: 2500 });
+    b = await bars();
+    check('control: an ordinary protected page with the same stub shows the banner', new URL(page.url()).pathname === '/houses/web/index.html' && b.length === 1, 'at=' + page.url() + ' bars=' + b.length);
+    stubGuard = false;
+
+    /* 14e. parity: the browser-side check finds every server-graded page the repo search finds */
+    {
+        const SN = fs.readFileSync(path.join(APP, 'components/SiteNotice.js'), 'utf8');
+        const re = new RegExp(SN.match(/var ASSESSMENT_RE = \/(.+)\/;/)[1]);
+        const all = []; (function walk(d) { for (const f of fs.readdirSync(d)) { const q = path.join(d, f); const st = fs.statSync(q); if (st.isDirectory()) walk(q); else if (f.endsWith('.html')) all.push(q); } })(APP);
+        const inFile = all.filter((f) => re.test(fs.readFileSync(f, 'utf8')));
+        const inline = (f) => (fs.readFileSync(f, 'utf8').match(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/g) || []).some((x) => re.test(x));
+        /* a page may differ only when the match is prose (text or an HTML comment), never in a script tag or a script src */
+        const inAnyScript = (f) => (fs.readFileSync(f, 'utf8').match(/<script[^>]*>[\s\S]*?<\/script>/g) || []).some((x) => re.test(x));
+        const prose = inFile.filter((f) => !inline(f) && !inAnyScript(f));
+        const missed = inFile.filter((f) => !inline(f) && inAnyScript(f)).map((f) => path.relative(APP, f));
+        const caught = inFile.length - prose.length;
+        check('parity: all ' + caught + ' pages with a grading call in a script are caught (' + prose.length + ' only mention it in prose: ' + prose.map((f) => path.basename(f)).join(', ') + ')', caught > 150 && missed.length === 0, 'missed: ' + missed.slice(0, 5).join(', '));
     }
 
     /* 15. the API key matches FirebaseAuth.js */

@@ -11,7 +11,7 @@
  * every case but the last uses a fake launcher.
  */
 const assert = require('assert');
-const { launchBrowser } = require('./run.js');
+const { launchBrowser, failureText } = require('./run.js');
 
 let pass = 0, fail = 0;
 /* Runs one named case and counts it; a thrown assertion is a failure, never a crash. */
@@ -51,6 +51,14 @@ function fake(bad) {
         const p = fake(1); let err = null;
         try { await launchBrowser(p, 1, 1000); } catch (e) { err = e; }
         assert.ok(err); assert.strictEqual(p.calls.length, 1); assert.ok(/after 1 attempt:/.test(err.message), err.message);
+    });
+    await t('alert text: a monitor failure says the site was not checked', async () => {
+        const m = failureText(true, 'Chrome did not start after 3 attempts: Timed out', []);
+        assert.ok(/^MONITOR could not run, the site was NOT checked \(Chrome did not start/.test(m), m);
+    });
+    await t('alert text: a site failure names the pages that failed', async () => {
+        const m = failureText(false, null, [{ target: 'Landing', passed: false }, { target: 'Sorting', passed: true }, { target: 'WSA Hub', passed: false }]);
+        assert.strictEqual(m, 'down: Landing, WSA Hub');
     });
     /* the flags must be ones a real Chrome starts with */
     await t('real Chrome starts with these flags', async () => {

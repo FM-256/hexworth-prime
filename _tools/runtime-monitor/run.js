@@ -30,7 +30,10 @@ const puppeteer = require('puppeteer');
 const TARGET_BASE = process.env.TARGET_BASE || 'https://hexworth.com';
 const NAV_TIMEOUT_MS = parseInt(process.env.NAV_TIMEOUT_MS || '25000', 10);
 // Chrome start-up: per-attempt timeout and attempts before the run is reported as failed.
-const LAUNCH_TIMEOUT_MS = parseInt(process.env.LAUNCH_TIMEOUT_MS || '60000', 10);
+// Budget (Nancy, 2026-11-12): the job's task timeout is 300 s. 5 targets x (25 s nav + 2 s settle)
+// = 135 s worst case, so 3 launches x 40 s = 120 s leaves ~45 s for start-up and the Firestore write.
+// A task Cloud Run kills writes NOTHING (no failed run, no Pulse update), worse than a failed run.
+const LAUNCH_TIMEOUT_MS = parseInt(process.env.LAUNCH_TIMEOUT_MS || '40000', 10);
 const LAUNCH_ATTEMPTS = Math.max(1, parseInt(process.env.LAUNCH_ATTEMPTS || '3', 10));
 const SETTLE_MS = parseInt(process.env.SETTLE_MS || '2000', 10);
 const PRETTY = process.env.PRETTY === '1';
@@ -221,6 +224,13 @@ async function checkTarget(browser, target, baseUrl, authState) {
  * 30000 ms while waiting for the WS endpoint"): the MONITOR failed and the site was never checked.
  * Cloud Run's /dev/shm is small, so Chrome is told to use /tmp, and each attempt gets a longer
  * timeout than Puppeteer's 30 s default. */
+/* What a failed run's alert says. When no page was checked the MONITOR failed (83 of 93 failed
+ * runs 10-13..11-12 were Chrome not starting), so it says so instead of "down:" and an empty list. */
+function failureText(monitorError, runError, targetResults) {
+    if (monitorError) { return 'MONITOR could not run, the site was NOT checked (' + String(runError).slice(0, 120) + ')'; }
+    return 'down: ' + targetResults.filter(r => !r.passed).map(r => r.target).join(', ');
+}
+
 async function launchBrowser(pptr, attempts, timeoutMs) {
     for (let n = 1; ; n++) {
         try {
@@ -284,6 +294,8 @@ async function main() {
     const passed = targetResults.filter(r => r.passed).length;
     const failed = targetResults.length - passed;
     const allPassed = failed === 0 && !runError;
+    // True when the run errored before checking any page: the monitor failed, the site is unknown.
+    const monitorError = !!runError && targetResults.length === 0;
 
     const report = {
         schema: 'hexworth.runtime-monitor/v1',
@@ -297,6 +309,7 @@ async function main() {
         allPassed,
         runError,
         launchAttempts,
+        monitorError,
         targets: targetResults
     };
 
@@ -338,9 +351,9 @@ async function main() {
             for (let i = runs.length - 1; i >= 0; i--) {
                 if (runs[i] && runs[i].ok === false) consec++; else break;
             }
-            const down = targetResults.filter(r => !r.passed).map(r => r.target);
-            if (consec >= T.consecCrit) alerts.push({ severity: 'critical', message: consec + ' consecutive failed runs — down: ' + down.join(', ') });
-            else alerts.push({ severity: 'warning', message: 'failed this run: ' + down.join(', ') });
+            const what = failureText(monitorError, runError, targetResults);
+            if (consec >= T.consecCrit) alerts.push({ severity: 'critical', message: consec + ' consecutive failed runs — ' + what });
+            else alerts.push({ severity: 'warning', message: 'failed this run — ' + what });
         }
         // Latency thresholds (only for targets that are up — a failed target is already alerted).
         targetResults.forEach(function (r) {
@@ -356,7 +369,7 @@ async function main() {
 
         // Latest status (Pulse onSnapshots this) + rolling history (~48 runs ≈ 12h).
         await db.collection('_quality_reports').doc('runtime_latest').set(report);
-        runs.push({ t: completedAt, ok: allPassed, passed, failed, maxNavMs, alertLevel: alertLevel });
+        runs.push({ t: completedAt, ok: allPassed, passed, failed, maxNavMs, alertLevel: alertLevel, launchAttempts, monitorError });
         await histRef.set({ runs: runs.slice(-48), updatedAt: completedAt });
 
         // Structured alert line for log-based GCP alerting / Cloud Logging visibility.
@@ -372,7 +385,7 @@ async function main() {
     process.exit(allPassed ? 0 : 1);
 }
 
-module.exports = { launchBrowser };
+module.exports = { launchBrowser, failureText };
 
 /* Run only when executed (the Cloud Run entrypoint), not when a test requires the file. */
 if (require.main === module) main().catch(e => {

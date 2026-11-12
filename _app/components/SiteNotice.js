@@ -22,6 +22,11 @@
  *   by its height, and moved back on dismiss. Only bars at top 0, wider than half the window and
  *   under 150px tall are touched.
  *
+ * - NOT on server-graded assessment pages (a quiz, an exam, the finals): content pushed down
+ *   mid-question can move a Submit button under a student's cursor (Nancy, 2026-11-12). A page is
+ *   one when its inline scripts call a grading function (ASSESSMENT_RE). Do not schedule
+ *   maintenance during an exam: the banner will not be there to warn its students.
+ *
  * Firestore fields: active (bool), level ('info' | 'warning'), message (<= 280 chars),
  * endsAt (ms epoch or null: clears itself at that time), updatedAt (ms epoch, the version).
  */
@@ -39,6 +44,18 @@
     var CACHE_MS = 5 * 60 * 1000;
     var FETCH_TIMEOUT_MS = 4000;
     var EL_ID = 'hx-site-notice';
+    /* The grading calls that mark a server-graded assessment page; the test checks this finds every
+     * page the same pattern finds in the repo. */
+    var ASSESSMENT_RE = /gradeQuiz|mdfinalStart|netfinalStart|gradeExam|callFunction\('grade/;
+
+    /* True on a server-graded quiz or exam page (judged from its inline scripts). */
+    function isAssessmentPage() {
+        var s = document.scripts;
+        for (var i = 0; i < s.length; i++) {
+            if (!s[i].src && ASSESSMENT_RE.test(s[i].textContent || '')) { return true; }
+        }
+        return false;
+    }
 
     /* localStorage that never throws (private mode, blocked storage). */
     function store(key, value) {
@@ -197,10 +214,12 @@
         var top = false;
         try { top = window.top === window.self; } catch (e) { top = false; }
         if (!top || typeof fetch !== 'function') { return; }
-        if (document.body) { refresh(); }
-        else { document.addEventListener('DOMContentLoaded', function () { refresh(); }); }
+        /* judged once the page's own scripts are all parsed */
+        var go = function () { if (!isAssessmentPage()) { refresh(); } };
+        if (document.readyState !== 'loading') { go(); }
+        else { document.addEventListener('DOMContentLoaded', go); }
     }
 
-    window.SiteNotice = { refresh: refresh, _parse: parse, _shouldShow: shouldShow, CACHE_KEY: CACHE_KEY, DISMISS_KEY: DISMISS_KEY };
+    window.SiteNotice = { refresh: refresh, _parse: parse, _shouldShow: shouldShow, _isAssessmentPage: isAssessmentPage, ASSESSMENT_RE: ASSESSMENT_RE, CACHE_KEY: CACHE_KEY, DISMISS_KEY: DISMISS_KEY };
     start();
 })();
