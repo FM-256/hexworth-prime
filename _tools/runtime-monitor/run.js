@@ -29,6 +29,9 @@ const puppeteer = require('puppeteer');
 
 const TARGET_BASE = process.env.TARGET_BASE || 'https://hexworth.com';
 const NAV_TIMEOUT_MS = parseInt(process.env.NAV_TIMEOUT_MS || '25000', 10);
+// Chrome start-up: per-attempt timeout and attempts before the run is reported as failed.
+const LAUNCH_TIMEOUT_MS = parseInt(process.env.LAUNCH_TIMEOUT_MS || '60000', 10);
+const LAUNCH_ATTEMPTS = Math.max(1, parseInt(process.env.LAUNCH_ATTEMPTS || '3', 10));
 const SETTLE_MS = parseInt(process.env.SETTLE_MS || '2000', 10);
 const PRETTY = process.env.PRETTY === '1';
 
@@ -212,12 +215,38 @@ async function checkTarget(browser, target, baseUrl, authState) {
 
 // ── MAIN ─────────────────────────────────────────────────────────────
 
+/* Starts Chrome, retrying a stalled or failed launch. Returns { browser, attempts }; on the last
+ * failure throws an Error carrying .attempts.
+ * Why: Chrome start-up stalls were 83 of 93 failed runs over 2026-10-13..11-12 ("Timed out after
+ * 30000 ms while waiting for the WS endpoint"): the MONITOR failed and the site was never checked.
+ * Cloud Run's /dev/shm is small, so Chrome is told to use /tmp, and each attempt gets a longer
+ * timeout than Puppeteer's 30 s default. */
+async function launchBrowser(pptr, attempts, timeoutMs) {
+    for (let n = 1; ; n++) {
+        try {
+            const browser = await pptr.launch({
+                headless: 'new',
+                timeout: timeoutMs,
+                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            });
+            return { browser, attempts: n };
+        } catch (e) {
+            if (n >= attempts) {
+                const err = new Error('Chrome did not start after ' + n + ' attempt' + (n === 1 ? '' : 's') + ': ' + (e.message || e));
+                err.attempts = n;
+                throw err;
+            }
+        }
+    }
+}
+
 async function main() {
     const startedAt = new Date().toISOString();
 
     let browser;
     let targetResults = [];
     let runError = null;
+    let launchAttempts = 0;   // Chrome launches tried this run (1 = first try worked)
 
     // SYM-14 mode dispatch — pick target set based on PROBE_MODE.
     // Anonymous mode unchanged from MVP. Auth mode loads stub modules
@@ -236,10 +265,10 @@ async function main() {
             throw new Error(`Unknown PROBE_MODE: ${PROBE_MODE} (expected 'anonymous' or 'auth')`);
         }
 
-        browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        const launched = await launchBrowser(puppeteer, LAUNCH_ATTEMPTS, LAUNCH_TIMEOUT_MS)
+            .catch((e) => { launchAttempts = e.attempts || 0; throw e; });
+        browser = launched.browser;
+        launchAttempts = launched.attempts;
 
         for (const target of activeTargets) {
             const result = await checkTarget(browser, target, TARGET_BASE, authState);
@@ -267,6 +296,7 @@ async function main() {
         failed,
         allPassed,
         runError,
+        launchAttempts,
         targets: targetResults
     };
 
@@ -342,7 +372,10 @@ async function main() {
     process.exit(allPassed ? 0 : 1);
 }
 
-main().catch(e => {
+module.exports = { launchBrowser };
+
+/* Run only when executed (the Cloud Run entrypoint), not when a test requires the file. */
+if (require.main === module) main().catch(e => {
     console.error(JSON.stringify({
         schema: 'hexworth.runtime-monitor/v1',
         fatalError: e.message || String(e),

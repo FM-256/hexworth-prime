@@ -1293,6 +1293,21 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch(e) {}
 })();
 
+// ── Site Notice Auto-Loader ─────────────────────────────────
+// Loads SiteNotice.js (the site-wide maintenance banner) on every page that
+// loads AccessGuard. FirebaseAuth.js has the same loader for pages without
+// AccessGuard; the window flag keeps a page that loads both to one copy.
+(function() {
+    try {
+        if (window.__siteNoticeRequested) return;
+        window.__siteNoticeRequested = true;
+        var s = document.createElement('script');
+        s.src = '/components/SiteNotice.js';
+        s.async = true;
+        document.head.appendChild(s);
+    } catch(e) {}
+})();
+
 // ── Tenant Auto-Loaders ─────────────────────────────────────
 // If tenant context exists in sessionStorage, dynamically load
 // TenantRouter.js (navigation routing) and TenantShell.js (branded header).

@@ -2962,6 +2962,35 @@
             <div class="ac-panel" data-panel="operations">
                 <div class="ac-panel-title">Account Operations</div>
 
+                <!-- Site Notice: the banner components/SiteNotice.js shows across the site -->
+                <div class="ac-card">
+                    <div class="ac-card-title">Site notice</div>
+                    <p style="font-size:0.82rem; color:var(--ac-text-muted); margin-bottom:14px;">
+                        A bar across the top of every page, for planned maintenance or a known problem. Visitors see a change within 5 minutes. Each visitor can dismiss it; editing the message shows it to them again. Text only, up to 280 characters.
+                    </p>
+                    <div id="snCurrent" style="font-size:0.85rem; margin-bottom:12px;">Loading the current notice...</div>
+                    <div class="ac-form-group" style="margin-bottom:12px;">
+                        <label class="ac-form-label" for="snMessage">Message</label>
+                        <textarea class="ac-form-input" id="snMessage" rows="2" maxlength="280" placeholder="Example: Maintenance tonight 9:00 to 9:30 pm Eastern. Labs and quiz grading may be unavailable."></textarea>
+                    </div>
+                    <div class="ac-form-row" style="margin-bottom:12px;">
+                        <div class="ac-form-group">
+                            <label class="ac-form-label" for="snLevel">Style</label>
+                            <select class="ac-form-select" id="snLevel">
+                                <option value="info">Info (blue)</option>
+                                <option value="warning">Warning (yellow)</option>
+                            </select>
+                        </div>
+                        <div class="ac-form-group">
+                            <label class="ac-form-label" for="snEndsAt">Clears itself at (optional, your local time)</label>
+                            <input type="datetime-local" class="ac-form-input" id="snEndsAt">
+                        </div>
+                    </div>
+                    <button class="ac-btn ac-btn-warning" onclick="saveSiteNotice(true)">Show notice</button>
+                    <button class="ac-btn ac-btn-ghost" onclick="saveSiteNotice(false)">Turn off</button>
+                    <div id="snStatus" style="margin-top:10px; font-size:0.85rem;"></div>
+                </div>
+
                 <!-- Merge Accounts -->
                 <div class="ac-card">
                     <div class="ac-card-title">Merge Accounts</div>
@@ -4372,6 +4401,66 @@
             if (panelName === 'coursetree') loadCourseTree();
             if (panelName === 'reviewgames') loadReviewGames();
             if (panelName === 'arcadefixes') afxLoad();
+            if (panelName === 'operations') loadSiteNotice();
+        };
+
+        // ── Site notice (Operations panel) ──────────────────────────
+        // Reads and writes site_notice/current, the one document components/SiteNotice.js shows as
+        // a banner on every page. The security boundary is firestore.rules (admin-only write, these
+        // five fields only, message <= 280); the checks here only stop an obviously wrong save.
+        function snDescribe(n) {
+            if (!n || !n.active) return 'Off: no banner is showing.';
+            if (n.endsAt && n.endsAt <= Date.now()) return 'Off: the notice expired at ' + new Date(n.endsAt).toLocaleString() + '.';
+            return 'ON (' + (n.level === 'warning' ? 'warning' : 'info') + ')' + (n.endsAt ? ', clears itself at ' + new Date(n.endsAt).toLocaleString() : ', until turned off') + ': "' + n.message + '"';
+        }
+        /* a ms timestamp as the value a datetime-local input takes, in local time */
+        function snLocalInput(ms) {
+            const d = new Date(ms), p = (x) => String(x).padStart(2, '0');
+            return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+        }
+        async function loadSiteNotice() {
+            const cur = document.getElementById('snCurrent');
+            if (!cur) return;
+            if (!db && typeof initFirestore === 'function') await initFirestore();
+            if (!db || !_firestoreModule) { cur.textContent = 'Firestore is not ready; reload the console.'; return; }
+            try {
+                const { doc, getDoc } = _firestoreModule;
+                const snap = await getDoc(doc(db, 'site_notice', 'current'));
+                const n = snap.exists() ? snap.data() : null;
+                cur.textContent = 'Now: ' + snDescribe(n);
+                if (n) {
+                    document.getElementById('snMessage').value = n.message || '';
+                    document.getElementById('snLevel').value = n.level === 'warning' ? 'warning' : 'info';
+                    document.getElementById('snEndsAt').value = n.endsAt && n.endsAt > Date.now() ? snLocalInput(n.endsAt) : '';
+                }
+            } catch (e) {
+                cur.textContent = 'Could not read the current notice: ' + e.message;
+            }
+        }
+        window.saveSiteNotice = async function(active) {
+            const status = document.getElementById('snStatus');
+            const message = document.getElementById('snMessage').value.trim();
+            const level = document.getElementById('snLevel').value === 'warning' ? 'warning' : 'info';
+            const endsRaw = document.getElementById('snEndsAt').value;
+            const endsAt = endsRaw ? new Date(endsRaw).getTime() : null;
+            if (active && !message) { status.textContent = 'Type a message first.'; return; }
+            if (message.length > 280) { status.textContent = 'The message is ' + message.length + ' characters; the limit is 280.'; return; }
+            if (active && endsAt !== null && !(endsAt > Date.now())) { status.textContent = 'The clear time is in the past. Pick a later time or leave it empty.'; return; }
+            if (!db && typeof initFirestore === 'function') await initFirestore();
+            if (!db || !_firestoreModule) { status.textContent = 'Firestore is not ready; reload the console.'; return; }
+            status.textContent = 'Saving...';
+            try {
+                const { doc, setDoc } = _firestoreModule;
+                const n = { active: !!active, level, message, endsAt: active ? endsAt : null, updatedAt: Date.now() };
+                await setDoc(doc(db, 'site_notice', 'current'), n);
+                document.getElementById('snCurrent').textContent = 'Now: ' + snDescribe(n);
+                status.textContent = active ? 'Saved. Visitors see it within 5 minutes.' : 'Turned off. It disappears for visitors within 5 minutes.';
+                /* show the result on this page straight away */
+                try { localStorage.removeItem('hexworth_site_notice_v1'); } catch (e) {}
+                if (window.SiteNotice) window.SiteNotice.refresh({ force: true });
+            } catch (e) {
+                status.textContent = 'Not saved: ' + e.message;
+            }
         };
 
         // ── Hub Registry panel (task #225): create/publish data-driven hubs ──────────
