@@ -170,17 +170,23 @@ function fakeAuth(signedIn, hang, refuse) {
     /* 7. a completed investigation: three accepted flags, then a reload shows the result with no page error
        (OW-01's hub threw on missing submitLock/submitForm once a student could submit, and both hubs
        threw binding a Submit button the completion message had removed) */
-    for (const box of ['ow-01-mole-hunt', 'ow-02-dead-drop']) {
+    /* every Open World hub (BUG-304: the other ten threw the same way on a completed reload) */
+    const ALL_HUBS = fs.readdirSync(path.join(APP, 'arena/boxes')).filter((d) => /^ows?-\d/.test(d)).sort();
+    check('found all 12 Open World hubs', ALL_HUBS.length === 12, ALL_HUBS.join(','));
+    for (const box of ALL_HUBS) {
         const hub = '/arena/boxes/' + box + '/index.html';
         await go(hub); await page.evaluate(() => localStorage.clear());
         await go(hub);
         await page.evaluate(() => { const n = engine.cfg.minConnectionsToSubmit || 5; for (let i = 0; i < n; i++) engine.state.connections.push({ id: 'seed-' + i, label: 's' }); engine.save(); });
         await go(hub);
         errors = [];
-        for (let i = 0; i < 3; i++) { await page.evaluate(() => { document.getElementById('answerInput').value = 'FLAG{test_x}'; document.getElementById('submitBtn').click(); }); await new Promise((r) => setTimeout(r, 400)); }
+        const nFlags = await page.evaluate(() => Object.keys(engine.cfg.flagConnections || {}).length);
+        for (let i = 0; i < nFlags; i++) { await page.evaluate(() => { document.getElementById('answerInput').value = 'FLAG{test_x}'; document.getElementById('submitBtn').click(); }); await new Promise((r) => setTimeout(r, 400)); }
         await go(hub);
-        const res = await page.evaluate(() => ({ completed: engine.state.completed, text: document.body.textContent.indexOf('INVESTIGATION COMPLETE') >= 0 }));
-        check(box + ' Hub: after three accepted flags the investigation completes and a reload shows it, no page error', res.completed && res.text && errors.length === 0, JSON.stringify({ res, errors }));
+        /* each hub words its result its own way (INVESTIGATION COMPLETE, REPORT ACCEPTED, ...): what
+           matters is that the form was replaced by a result with the score */
+        const res = await page.evaluate(() => ({ completed: engine.state.completed, text: !document.getElementById('submitBtn') && /(COMPLETE|ACCEPTED)[\s\S]*Score: \d+/.test(document.body.textContent) }));
+        check(box + ' Hub: after every flag is accepted the investigation completes and a reload shows it, no page error', res.completed && res.text && errors.length === 0, JSON.stringify({ res, errors }));
         await page.evaluate(() => localStorage.clear());
     }
 
