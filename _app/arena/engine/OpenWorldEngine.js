@@ -340,21 +340,27 @@ class OpenWorldEngine {
      * for all twelve OW/OWS boxes, rather than every page carrying its own tag.
      */
     ensureAuth() {
-        if (!window.__owAuthReady) {
-            window.__owAuthReady = new Promise(function (resolve) {
+        /* the script is loaded once per page; the sign-in check is redone on each call, so a
+           student who signs in later (another tab, late restore) is seen on the next request */
+        if (!window.__owAuthScript) {
+            window.__owAuthScript = new Promise(function (resolve) {
                 if (typeof FirebaseAuth !== 'undefined') { resolve(true); return; }
                 var s = document.createElement('script');
                 s.src = '/components/FirebaseAuth.js';
                 s.onload = function () { resolve(typeof FirebaseAuth !== 'undefined'); };
                 s.onerror = function () { resolve(false); };
                 document.head.appendChild(s);
-            }).then(function (loaded) {
-                if (!loaded) return false;
-                /* waitForAuth runs init() itself: an injected script misses its DOMContentLoaded auto-init */
-                return FirebaseAuth.waitForAuth().then(function (user) { return !!user; }, function () { return false; });
             });
         }
-        return window.__owAuthReady;
+        var check = window.__owAuthScript.then(function (loaded) {
+            if (!loaded) return false;
+            /* waitForAuth runs init() itself: an injected script misses its DOMContentLoaded auto-init */
+            return FirebaseAuth.waitForAuth().then(function (user) { return !!user || FirebaseAuth.isSignedIn(); }, function () { return false; });
+        });
+        /* Bounded (Nancy, 2026-11-12): if the Firebase SDK cannot load (a network blocking gstatic,
+           offline) waitForAuth never settles, and the Hub would say "Validating..." for good. */
+        var timeout = new Promise(function (resolve) { setTimeout(function () { resolve(false); }, OpenWorldEngine.AUTH_TIMEOUT_MS); });
+        return Promise.race([check, timeout]);
     }
 
     /**
@@ -368,11 +374,11 @@ class OpenWorldEngine {
             .map(function (c) { return fc[c.id]; })
             .filter(function (flagId) { return flagId && !delivered[flagId]; });
         if (!pending.length) return;
-        var got = 0;
         for (var i = 0; i < pending.length; i++) {
-            if (await this.requestFlag(pending[i])) got++;
+            await this.requestFlag(pending[i]);
         }
-        if (got && window.onOpenWorldStateChange) window.onOpenWorldStateChange(this.state);
+        /* re-render either way: a flag arrived, or the card can now say why it did not */
+        if (window.onOpenWorldStateChange) window.onOpenWorldStateChange(this.state);
     }
 
     /**
@@ -403,21 +409,49 @@ class OpenWorldEngine {
 
     /** The deliverFlag call itself (requestFlag shares one in-flight call per flag). */
     async _fetchFlag(boxId, flagId) {
+        if (!this.flagStatus) this.flagStatus = {};
+        /* a flag the server refused is not asked for again this session (Nancy, 2026-11-12):
+           deliverPendingFlags runs on every page load and each refusal costs server reads */
+        if (this._refusedThisSession(flagId)) { this.flagStatus[flagId] = 'refused'; return null; }
         try {
-            if (await this.ensureAuth()) {
-                var result = await FirebaseAuth.callFunction('deliverFlag', { boxId: boxId, flagId: flagId });
-                var data = result.data || result;
-                if (data.flagText) {
-                    if (!this.state.deliveredFlags) this.state.deliveredFlags = {};
-                    this.state.deliveredFlags[flagId] = data.flagText;
-                    this.save();
-                    return data.flagText;
-                }
+            if (!(await this.ensureAuth())) { this.flagStatus[flagId] = 'signin'; return null; }
+            var result = await FirebaseAuth.callFunction('deliverFlag', { boxId: boxId, flagId: flagId });
+            var data = result.data || result;
+            if (data.flagText) {
+                if (!this.state.deliveredFlags) this.state.deliveredFlags = {};
+                this.state.deliveredFlags[flagId] = data.flagText;
+                this.save();
+                delete this.flagStatus[flagId];
+                return data.flagText;
             }
+            this.flagStatus[flagId] = 'error';
         } catch (e) {
+            var code = String((e && e.code) || '');
+            if (/permission-denied|not-found|failed-precondition/.test(code)) {
+                this.flagStatus[flagId] = 'refused';
+                try { sessionStorage.setItem('hexworth_ow_refused_' + boxId + '_' + flagId, '1'); } catch (x) {}
+            } else if (/unauthenticated/.test(code)) {
+                this.flagStatus[flagId] = 'signin';
+            } else {
+                this.flagStatus[flagId] = 'error';
+            }
             console.warn('[OW] Flag delivery failed:', e.message);
         }
         return null;
+    }
+
+    /** True when the server refused this flag earlier in this browser session. */
+    _refusedThisSession(flagId) {
+        try { return sessionStorage.getItem('hexworth_ow_refused_' + this.cfg.registryId + '_' + flagId) === '1'; } catch (e) { return false; }
+    }
+
+    /**
+     * Why a confirmed connection's flag is not shown, for the CaseBoard: 'signin' (not signed in
+     * or sign-in could not load), 'refused' (the server would not release it), 'error' (could not
+     * reach the server), or null while a request is still running or none was made yet.
+     */
+    getFlagStatus(flagId) {
+        return (this.flagStatus && this.flagStatus[flagId]) || null;
     }
 
     /**
@@ -790,3 +824,6 @@ class OpenWorldEngine {
 
 // Export for use across pages
 window.OpenWorldEngine = OpenWorldEngine;
+
+/* How long a flag request waits for sign-in to settle before treating the student as signed out. */
+OpenWorldEngine.AUTH_TIMEOUT_MS = 10000;

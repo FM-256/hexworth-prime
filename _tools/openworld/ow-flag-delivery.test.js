@@ -26,12 +26,12 @@ function check(name, cond, extra) { if (cond) { pass++; console.log('ok   ' + na
 
 /* A FirebaseAuth stand-in: signed in or not, records calls in window.__calls, answers deliverFlag
  * and validateFlag like the server for the boxes under test. */
-function fakeAuth(signedIn) {
+function fakeAuth(signedIn, hang, refuse) {
     return 'window.__calls = [];\n' +
         'const FirebaseAuth = { init: async function () {}, isSignedIn: function () { return ' + signedIn + '; },\n' +
-        '  waitForAuth: async function () { return ' + (signedIn ? '{ uid: "stu" }' : 'null') + '; },\n' +
+        '  waitForAuth: ' + (hang ? 'function () { return new Promise(function () {}); }' : 'async function () { return ' + (signedIn ? '{ uid: "stu" }' : 'null') + '; }') + ',\n' +
         '  callFunction: async function (name, data) { window.__calls.push([name, data]);\n' +
-        '    if (name === "deliverFlag") return { data: { flagText: "FLAG{test_" + data.boxId + "_" + data.flagId + "}" } };\n' +
+        '    if (name === "deliverFlag") { ' + (refuse ? 'var e = new Error("This box does not disclose flag values."); e.code = "functions/permission-denied"; throw e;' : 'return { data: { flagText: "FLAG{test_" + data.boxId + "_" + data.flagId + "}" } };') + ' }\n' +
         '    if (name === "validateFlag") return { data: /^FLAG\\{test_/.test(data.submission) ? { correct: true, flagId: "attacker" } : { correct: false } };\n' +
         '    return { data: {} }; } };';
 }
@@ -39,14 +39,14 @@ function fakeAuth(signedIn) {
 (async () => {
     const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
     const page = await browser.newPage();
-    let signedIn = true, authLoads = 0, errors = [];
+    let signedIn = true, hang = false, refuse = false, authLoads = 0, errors = [];
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.setRequestInterception(true);
     page.on('request', (req) => {
         const u = req.url();
         if (!u.startsWith(ORIGIN)) { return req.abort('blockedbyclient'); }
         const p = decodeURIComponent(new URL(u).pathname);
-        if (p === '/components/FirebaseAuth.js') { authLoads++; return req.respond({ status: 200, contentType: 'application/javascript', body: fakeAuth(signedIn) }); }
+        if (p === '/components/FirebaseAuth.js') { authLoads++; return req.respond({ status: 200, contentType: 'application/javascript', body: fakeAuth(signedIn, hang, refuse) }); }
         if (p === '/components/SiteNotice.js') { return req.respond({ status: 200, contentType: 'application/javascript', body: '' }); }
         const f = path.join(APP, p);
         if (f.startsWith(APP) && fs.existsSync(f) && fs.statSync(f).isFile()) {
@@ -100,8 +100,27 @@ function fakeAuth(signedIn) {
     await page.evaluate(() => { engine.state.deliveredFlags = {}; engine.save(); });
     await go(BOX + 'caseboard.html', 1200);
     card = await identityCard();
-    check('signed out: no server call, the card still waits, no page error', (await calls()).length === 0 && /Flag loading/.test(card) && errors.length === 0, card + ' ' + errors.join('|'));
+    check('signed out: no server call, the card says to sign in, no page error', (await calls()).length === 0 && /Sign in to Hexworth to receive this flag/.test(card) && errors.length === 0, card + ' ' + errors.join('|'));
     signedIn = true;
+
+    /* 5b. sign-in never settles (SDK blocked): the card says to sign in after the timeout, the Hub does not hang */
+    hang = true;
+    await page.evaluate(() => { engine.state.deliveredFlags = {}; engine.save(); });
+    await go(BOX + 'caseboard.html', 11500);
+    card = await identityCard();
+    check('auth that never settles: after the 10 s cap the card says to sign in (no hang), no call', (await calls()).length === 0 && /Sign in to Hexworth/.test(card), card);
+    hang = false;
+
+    /* 5c. the server refuses: the card says so, and the next page does not ask again this session */
+    refuse = true;
+    await go(BOX + 'caseboard.html', 1200);
+    card = await identityCard();
+    const r1 = (await calls()).length;
+    await go(BOX + 'caseboard.html', 1200);
+    const card2 = await identityCard();
+    check('server refusal: card says it was not released; the next page makes no call', r1 === 1 && /did not release this flag/.test(card) && (await calls()).length === 0 && /did not release/.test(card2), r1 + ' ' + card);
+    refuse = false;
+    await page.evaluate(() => sessionStorage.clear());
 
     /* 6. the Hub accepts the flag (OW-02, 03, 04 read a Promise synchronously before) */
     for (const [box, key] of [['ow-02-dead-drop', 'hexworth_ow02'], ['ow-03-glass-house', 'hexworth_ow03'], ['ow-04-burned-source', 'hexworth_ow04']]) {
