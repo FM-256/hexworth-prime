@@ -147,7 +147,7 @@ function fakeAuth(signedIn, hang, refuse) {
     await page.evaluate(() => sessionStorage.clear());
 
     /* 6. the Hub accepts the flag (OW-02, 03, 04 read a Promise synchronously before) */
-    for (const [box, key] of [['ow-02-dead-drop', 'hexworth_ow02'], ['ow-03-glass-house', 'hexworth_ow03'], ['ow-04-burned-source', 'hexworth_ow04']]) {
+    for (const [box, key] of [['ow-01-mole-hunt', 'hexworth_ow01'], ['ow-02-dead-drop', 'hexworth_ow02'], ['ow-03-glass-house', 'hexworth_ow03'], ['ow-04-burned-source', 'hexworth_ow04']]) {
         const hub = '/arena/boxes/' + box + '/index.html';
         await go(hub);
         /* unlock the submit form: enough confirmed connections for this box */
@@ -164,6 +164,23 @@ function fakeAuth(signedIn, hang, refuse) {
         check(box + ' Hub: a right flag says FLAG ACCEPTED, a wrong one "Invalid flag.", both validated server-side, no errors',
             /FLAG ACCEPTED/.test(good) && /Invalid flag\./.test(bad) && !/undefined/.test(good + bad) && vc.length === 2 && vc[0][1].boxId === box && errors.length === 0,
             JSON.stringify({ good, bad, vc: vc.length, errors }));
+        await page.evaluate(() => localStorage.clear());
+    }
+
+    /* 7. a completed investigation: three accepted flags, then a reload shows the result with no page error
+       (OW-01's hub threw on missing submitLock/submitForm once a student could submit, and both hubs
+       threw binding a Submit button the completion message had removed) */
+    for (const box of ['ow-01-mole-hunt', 'ow-02-dead-drop']) {
+        const hub = '/arena/boxes/' + box + '/index.html';
+        await go(hub); await page.evaluate(() => localStorage.clear());
+        await go(hub);
+        await page.evaluate(() => { const n = engine.cfg.minConnectionsToSubmit || 5; for (let i = 0; i < n; i++) engine.state.connections.push({ id: 'seed-' + i, label: 's' }); engine.save(); });
+        await go(hub);
+        errors = [];
+        for (let i = 0; i < 3; i++) { await page.evaluate(() => { document.getElementById('answerInput').value = 'FLAG{test_x}'; document.getElementById('submitBtn').click(); }); await new Promise((r) => setTimeout(r, 400)); }
+        await go(hub);
+        const res = await page.evaluate(() => ({ completed: engine.state.completed, text: document.body.textContent.indexOf('INVESTIGATION COMPLETE') >= 0 }));
+        check(box + ' Hub: after three accepted flags the investigation completes and a reload shows it, no page error', res.completed && res.text && errors.length === 0, JSON.stringify({ res, errors }));
         await page.evaluate(() => localStorage.clear());
     }
 
