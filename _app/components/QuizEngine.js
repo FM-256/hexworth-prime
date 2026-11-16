@@ -614,9 +614,10 @@ class QuizEngine {
         const code = String((err && err.code) || '');
         const msg = String((err && err.message) || '');
         const signedOut = /unauthenticated/.test(code) || /must be signed in/i.test(msg);
-        /* the server rejected this quiz itself (no key, a rejected submission, a bad key): a resubmit
-           cannot help and it is not a connection problem */
-        const quizProblem = !signedOut && /not-found|invalid-argument|failed-precondition|internal/.test(code);
+        /* the server rejected this quiz itself (no key, a rejected submission): a resubmit cannot
+           help and it is not a connection problem. `internal` is left out on purpose: Cloud
+           Functions also returns it for an unhandled exception, which can be transient (Nancy). */
+        const quizProblem = !signedOut && /not-found|invalid-argument|failed-precondition/.test(code);
         const box = document.createElement('div');
         box.className = 'quiz-engine theme-' + this.config.theme;
         box.setAttribute('role', 'alert');
