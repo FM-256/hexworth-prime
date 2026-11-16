@@ -34,6 +34,14 @@
 - **Found:** 2026-11-12, operator on live OW-02: the CaseBoard sat on "Flag loading from server...". Since flags moved server-side (4e42ab1fc, 6056cef5b, April 2026) no OW/OWS page included `FirebaseAuth.js`, so `OpenWorldEngine.requestFlag`'s `typeof FirebaseAuth` check was always false and `deliverFlag` was never called, on all 12 boxes. The OW-02/03/04 Hubs also read `submitAnswer`'s Promise synchronously, so every flag showed "Incorrect".
 - **Fix:** fcf0776be + 26e0e1d79 (engine loads FirebaseAuth, 10 s auth cap, one request per flag, undelivered flags fetched on load, CaseBoard says why a flag is missing) and the hub async handlers. Deployed 2026-11-12; operator confirmed "flag accepted" on OW-02. Follow-ups: OW-02 locked cards (cf1b60b3d, deployed), BUG-303, BUG-304.
 
+### BUG-301 — Network+ final: a failing sitting counts as completion on the instructor dashboard  ·  [P2]  ·  open
+- **Found:** 2026-11-03 by Mallory, reviewing the MD-100 final design (which reuses the pattern). `netfinalRecordGrade` (`functions/index.js` ~11326-11387) writes `completions[catalogId] = {completed:true, score}` for every submitted sitting, pass or fail; `InstructorDashboard.js` counts `c.completed` as completion (~983-984, ~1194-1195) and marks a path done when every module's `completed` is true (~1461). A student who failed the final shows as having completed it. Proven by code read; not checked against production rows.
+- **Fix:** not started. Record the score for every sitting but only set credit on a pass (or a separate `sat` field), and check every other consumer of `completions[...]` (dashboard, transcript, badges, trophies) before changing the shape. The MD-100 final design adopts the corrected shape from the start.
+
+### BUG-300 — Network+ final: the hidden lab choices are predictable from a student's visible values  ·  [P2]  ·  open
+- **Found:** 2026-11-03 by Mallory, proven offline. The netfinal generator draws every value, visible and hidden, from one `mulberry32` stream seeded by a 32-bit `xmur3` hash (`functions/netfinal/netfinal-core.js` ~153). The values a student sees determine `seed32` uniquely; a brute force over 2^32 recovered it in about 60 seconds on one core and predicted the hidden picks correctly. Precondition: knowing the generator's draw order (the source). It also makes a weak `NETFINAL_SEED_SECRET` checkable offline.
+- **Fix:** not started. Derive hidden choices from HMAC-SHA256(secret, uid|exam|label), separate from the stream that produces visible values, and keep the secret high-entropy. The MD-100 final design does this from the start.
+
 ### BUG-299 — the completion registry generator never reads completeQuiz ids  ·  [P2]  ·  open
 - **Found:** 2026-11-02, PIS course QC. `gen-completion-registry.js` scans `ModuleProgress.complete(` only (~:539), never `completeQuiz(`. Across `_app`, 58 of 78 literal `completeQuiz` ids are missing from `functions/completion-registry.json` (all bm-*, cse-*, csp-* quizzes and exams, and more). `--check` still reports "in sync", so the generator is blind, not stale.
 - **Impact:** `pis-final-written` (the PIS written final, `exams/pis-final.exam.html:624`) is missing; the pending BUG-272 `submitClassProgress` (`_isKnownCompletionStrict`) would reject it, and the Server Room quiz and exam ids, whenever a class assigns them. Report-only today (`_ENFORCE_COMPLETION_REGISTRY` false).
@@ -334,6 +342,7 @@ Severity: **P0** live student-facing harm / data loss · **P1** broken feature o
 Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ---
+- **2026-11-16:** a working-tree edit from another session marked this fixed-not-deployed with a `submitClassProgress` callable fix; that code is not in the repo or deployed, so the status stays **open**. The described design is archived at `_archive/bug-tracker/BUG-272-unverified-fix-note-2026-11-16.md`.
 
 ## Open
 
