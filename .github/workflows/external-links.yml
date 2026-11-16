@@ -1,0 +1,75 @@
+# External links — weekly check that the "Free extra practice" card's links still work.
+#
+# The card (_app/components/ExternalResources.js) sends students on 48 course hubs to SEED Labs
+# and the CLARK library. Those sites are not ours: a page that moves or disappears would otherwise
+# be found by a student. This reads the card's own link table and fetches every link; a link must
+# fail twice, 30 seconds apart, to count (_tools/external-resources/check-links.js).
+#
+# Why GitHub: it is outside the on-prem network (whose AT&T gateway blocks hexworth.com) and
+# outside the power domain, like external-watchdog.yml beside it.
+#
+# Alerts go to the same ntfy topic as external-watchdog (repository secret NTFY_EXTERNAL_TOPIC;
+# setup in README-external-watchdog.md). NO SECRETS IN THIS FILE: this repo is PUBLIC.
+
+name: external-links
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"   # Mondays 09:00 UTC = 04:00 Eastern (EST), inside the measured quiet hours
+  workflow_dispatch: {}   # run it on demand from the Actions tab
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            _app/components/ExternalResources.js
+            _tools/external-resources/check-links.js
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check every external link on the card
+        id: links
+        run: |
+          set +e
+          node _tools/external-resources/check-links.js > out.txt 2>&1
+          code=$?
+          cat out.txt
+          if [ "$code" -ne 0 ]; then
+            echo "status=fail" >> "$GITHUB_OUTPUT"
+            { echo 'dead<<EOF'; grep -E '^DEAD|cannot read' out.txt | head -20; echo 'EOF'; } >> "$GITHUB_OUTPUT"
+          else
+            echo "status=ok" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Alert on dead links
+        if: steps.links.outputs.status == 'fail'
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_EXTERNAL_TOPIC }}
+        run: |
+          if [ -z "${NTFY_TOPIC:-}" ]; then
+            echo "::error::NTFY_EXTERNAL_TOPIC secret is not set, so dead links cannot be reported."
+            exit 1
+          fi
+          curl -sS -m 20 \
+            -H "Title: Hexworth: dead links on the Free extra practice card" \
+            -H "Priority: default" \
+            -H "Tags: link" \
+            -d "The weekly external-links check found dead links students can click:
+          ${{ steps.links.outputs.dead }}
+          Fix the link table in _app/components/ExternalResources.js, then run
+          node _tools/external-resources/external-resources.test.js --live before deploying." \
+            "https://ntfy.sh/${NTFY_TOPIC}"
+
+      - name: Fail the run so it is visible in the Actions tab
+        if: steps.links.outputs.status == 'fail'
+        run: exit 1
