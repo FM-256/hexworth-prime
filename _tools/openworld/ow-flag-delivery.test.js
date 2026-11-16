@@ -190,6 +190,26 @@ function fakeAuth(signedIn, hang, refuse) {
         await page.evaluate(() => localStorage.clear());
     }
 
+    /* 8. every CaseBoard confirms every connection and shows every flag (2026-11-16: ten boards
+       called getDeliveredFlagHtml without defining it, so the first confirm threw and the board
+       stopped at 0 / N). Pins go in through the engine here; reachability is the scripted student
+       runs' job. */
+    for (const box of ALL_HUBS) {
+        const cbSrc = fs.readFileSync(path.join(APP, 'arena/boxes', box, 'caseboard.html'), 'utf8');
+        const conns = [...cbSrc.matchAll(/id:\s*'(conn-[^']+)'[\s\S]*?requires:\s*\[([^\]]+)\]/g)].map((m) => ({ id: m[1], req: m[2].match(/'[^']+'/g).map((x) => x.slice(1, -1)) }));
+        const board = '/arena/boxes/' + box + '/caseboard.html';
+        await go(board); await page.evaluate(() => localStorage.clear()); await go(board);
+        errors = [];
+        await page.evaluate((need) => { need.forEach((id) => { const ev = engine.cfg.evidence[id]; if (ev) engine.pinEvidence(Object.assign({ id: id }, ev)); }); }, [...new Set(conns.flatMap((c) => c.req))]);
+        await go(board);
+        for (let i = 0; i < 15; i++) { const b = await page.$('.cb-conn-btn:not([disabled])'); if (!b) break; await b.click(); await new Promise((r) => setTimeout(r, 300)); }
+        const res = await page.evaluate(() => ({ confirmed: engine.state.connections.length, counter: (document.getElementById('connProgress') || {}).textContent, flagCards: [...document.querySelectorAll('.cb-conn')].filter((e) => /FLAG\{test_/.test(e.textContent)).length, nFlags: Object.keys(engine.cfg.flagConnections || {}).length }));
+        check(box + ' CaseBoard: all ' + conns.length + ' connections confirm, counter full, every flag shown, no errors',
+            res.confirmed === conns.length && res.counter === conns.length + ' / ' + conns.length && res.flagCards === res.nFlags && errors.length === 0,
+            JSON.stringify({ res, errors: errors.slice(0, 2) }));
+        await page.evaluate(() => localStorage.clear());
+    }
+
     await browser.close();
     console.log('\now-flag-delivery: ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
