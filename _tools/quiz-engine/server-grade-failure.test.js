@@ -35,10 +35,11 @@ const fixture = (withAnswers) => '<!doctype html><html><head><meta charset="utf-
 /* FirebaseAuth stand-in: gradeQuiz follows window.__modes (set before load), grading like the server. */
 const AUTH = 'window.__calls=[];window.__modes=(window.__modesInit||[]).slice();' +
     'const FirebaseAuth={init:async()=>{},isSignedIn:()=>true,getUser:()=>({uid:"t"}),waitForAuth:async()=>({uid:"t"}),' +
-    'signInWithGoogle:async()=>{window.__signIns=(window.__signIns||0)+1;},onAuthStateChanged:()=>{},' +
+    'signInWithGoogle:async()=>{window.__signIns=(window.__signIns||0)+1;return window.__signInResult===undefined?{uid:"t"}:window.__signInResult;},onAuthStateChanged:()=>{},' +
     'callFunction:async(n,d)=>{window.__calls.push([n,JSON.parse(JSON.stringify(d))]);const m=window.__modes.shift()||"ok";' +
     'if(m==="401"){const e=new Error("Must be signed in.");e.code="functions/unauthenticated";throw e;}' +
-    'if(m==="net"){const e=new Error("Failed to fetch");e.code="functions/internal";throw e;}' +
+    'if(m==="net"){const e=new Error("Failed to fetch");e.code="functions/unavailable";throw e;}' +
+    'if(m==="nokey"){const e=new Error("Quiz key not found.");e.code="functions/not-found";throw e;}' +
     'const key=window.__key||[];const results=key.map((k,i)=>({correct:d.answers[String(i)]===k}));const score=results.filter(r=>r.correct).length;' +
     'return{data:{score,total:key.length,percentage:Math.round(score/key.length*100),passed:score/key.length>=0.7,results}};}};';
 
@@ -92,13 +93,21 @@ const AUTH = 'window.__calls=[];window.__modes=(window.__modesInit||[]).slice();
     check('a refused grade (not signed in) shows NO score', !SCORE.test(shown), shown.slice(0, 160));
     check('...and says to sign in, with Sign in and Submit again buttons', /Sign in to submit this quiz/.test(shown) && /Sign in with Google/.test(shown) && /Submit again/.test(shown), shown.slice(0, 200));
 
+    /* 1b. the sign-in popup is cancelled or blocked (signInWithGoogle returns null): no resubmit */
+    await p.evaluate(() => { window.__signInResult = null; });
+    await p.evaluate(() => [...document.querySelectorAll('#quiz-container button')].find((x) => x.textContent === 'Sign in with Google').click());
+    await new Promise((r) => setTimeout(r, 700));
+    const c1b = await p.evaluate(() => ({ calls: window.__calls.length, signIns: window.__signIns, text: document.querySelector('#quiz-container').innerText, enabled: [...document.querySelectorAll('#quiz-container button')].every((b) => !b.disabled) }));
+    check('a cancelled sign-in does not resubmit, stays on the sign-in screen, buttons usable again', c1b.calls === 1 && c1b.signIns === 1 && /Sign in to submit/.test(c1b.text) && c1b.enabled, JSON.stringify(c1b).slice(0, 200));
+    await p.evaluate(() => { window.__signInResult = undefined; });
+
     /* 2. Submit again after signing in: same answers, graded */
     await p.evaluate(() => { window.__modes = ['ok']; });
     await p.evaluate(() => [...document.querySelectorAll('#quiz-container button')].find((x) => x.textContent === 'Sign in with Google').click());
     await new Promise((r) => setTimeout(r, 900));
     shown = await p.evaluate(() => document.querySelector('#quiz-container').innerText.replace(/\s+/g, ' '));
     const c2 = await p.evaluate(() => ({ n: window.__calls.length, same: JSON.stringify(window.__calls[0][1].answers) === JSON.stringify(window.__calls[window.__calls.length - 1][1].answers), signIns: window.__signIns }));
-    check('Sign in with Google, then the same answers are resubmitted and graded', c2.signIns === 1 && c2.same && SCORE.test(shown) && !/Sign in to submit/.test(shown), JSON.stringify(c2) + ' ' + shown.slice(0, 120));
+    check('Sign in with Google, then the same answers are resubmitted and graded', c2.signIns === 2 && c2.same && SCORE.test(shown) && !/Sign in to submit/.test(shown), JSON.stringify(c2) + ' ' + shown.slice(0, 120));
     check('no page errors (refusal path)', p.__errors.length === 0, p.__errors.join(' | '));
     await p.close();
 
@@ -110,6 +119,12 @@ const AUTH = 'window.__calls=[];window.__modes=(window.__modesInit||[]).slice();
     await new Promise((r) => setTimeout(r, 900));
     shown = await p.evaluate(() => document.querySelector('#quiz-container').innerText.replace(/\s+/g, ' '));
     check('Submit again after a network failure grades the same answers', SCORE.test(shown) && (await p.evaluate(() => JSON.stringify(window.__calls[0][1].answers) === JSON.stringify(window.__calls[window.__calls.length - 1][1].answers))), shown.slice(0, 120));
+    await p.close();
+
+    /* 3b. the server rejected the quiz itself (no key): says so, no futile Submit again, no connection advice */
+    p = await open('/__fixture.html', ['nokey'], KEY);
+    shown = await takeQuiz(p);
+    check('a server rejection (no key) says the quiz could not be graded, without Submit again or connection advice', /This quiz could not be graded/.test(shown) && !/Submit again/.test(shown) && !/connection/.test(shown) && !SCORE.test(shown), shown.slice(0, 200));
     await p.close();
 
     /* 4. the error text is never parsed as HTML */

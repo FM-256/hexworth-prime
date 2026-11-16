@@ -614,6 +614,9 @@ class QuizEngine {
         const code = String((err && err.code) || '');
         const msg = String((err && err.message) || '');
         const signedOut = /unauthenticated/.test(code) || /must be signed in/i.test(msg);
+        /* the server rejected this quiz itself (no key, a rejected submission, a bad key): a resubmit
+           cannot help and it is not a connection problem */
+        const quizProblem = !signedOut && /not-found|invalid-argument|failed-precondition|internal/.test(code);
         const box = document.createElement('div');
         box.className = 'quiz-engine theme-' + this.config.theme;
         box.setAttribute('role', 'alert');
@@ -621,30 +624,44 @@ class QuizEngine {
         inner.style.cssText = 'text-align: center; padding: 60px 20px;';
         const h = document.createElement('h2');
         h.style.cssText = 'color: #f87171; margin-bottom: 16px;';
-        h.textContent = signedOut ? 'Sign in to submit this quiz' : 'Your quiz was not graded';
+        h.textContent = signedOut ? 'Sign in to submit this quiz' : (quizProblem ? 'This quiz could not be graded' : 'Your quiz was not graded');
         const p = document.createElement('p');
         p.style.cssText = 'color: #aaa; margin-bottom: 20px;';
         p.textContent = signedOut
             ? 'Quizzes are graded on the server, which needs you to be signed in. Your answers are kept: sign in, then submit again.'
-            : 'The grading server could not be reached. Your answers are kept: check your connection, then submit again.';
+            : quizProblem
+                ? 'The grading server rejected this quiz. Please tell your instructor; the details are below.'
+                : 'The grading server could not be reached. Your answers are kept: check your connection, then submit again.';
         inner.appendChild(h);
         inner.appendChild(p);
+        const buttons = [];
+        /* one action at a time: a second click while a sign-in popup or a submit is pending
+           would start a second one */
+        const setBusy = (busy) => buttons.forEach(b => { b.disabled = busy; });
         const btn = (label, onClick) => {
             const b = document.createElement('button');
             b.type = 'button';
             b.textContent = label;
             b.style.cssText = 'margin: 8px; padding: 10px 20px; cursor: pointer;';
-            b.addEventListener('click', onClick);
+            b.addEventListener('click', () => { if (!b.disabled) onClick(); });
             inner.appendChild(b);
+            buttons.push(b);
             return b;
         };
         if (signedOut && typeof FirebaseAuth !== 'undefined' && FirebaseAuth.signInWithGoogle) {
             btn('Sign in with Google', async () => {
-                try { await FirebaseAuth.signInWithGoogle(); } catch (e) { return; }
+                setBusy(true);
+                /* signInWithGoogle never throws: a cancelled or blocked popup returns null (and may
+                   alert). Resubmit only on a real sign-in, or it is a guaranteed second refusal. */
+                let user = null;
+                try { user = await FirebaseAuth.signInWithGoogle(); } catch (e) { user = null; }
+                if (!user) { setBusy(false); return; }
                 this._submitQuizToServer(timedOut);
             });
         }
-        btn('Submit again', () => this._submitQuizToServer(timedOut));
+        if (!quizProblem) {
+            btn('Submit again', () => { setBusy(true); this._submitQuizToServer(timedOut); });
+        }
         if (msg) {
             const d = document.createElement('p');
             d.style.cssText = 'font-size: 12px; color: #8a8a8a; margin-top: 16px;';
