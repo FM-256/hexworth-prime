@@ -10,7 +10,9 @@
  * hub's level): SEED Labs pages taken from the
  * CLARK Cybersecurity Library's own records (api.clark.center learning-object materials) and each
  * checked to return 200 on 2026-11-16, plus a link to browse CLARK. CLARK materials are
- * CC BY-NC-SA 4.0; these are LINKS only, nothing is copied into Hexworth. Individual CLARK item
+ * CC BY-NC-SA 4.0; these are LINKS only, nothing is copied into Hexworth. Tenants: operator decision
+ * 2026-11-16, the card shows for white-label tenant students too (free, neutral, labelled external;
+ * tenant faculty were not asked). A per-tenant opt-out would need a TenantRouter check. Individual CLARK item
  * pages are not linked: their URL format could not be verified, so only the browse page is.
  */
 (function () {
