@@ -564,8 +564,13 @@ class QuizEngine {
             .catch(err => {
                 console.error('[QuizEngine/SEC-5] Server grading failed:', err);
 
-                // Fallback: if server grading fails and we have local answers, grade locally
-                if (this.config.questions[0] && this.config.questions[0].correct !== undefined) {
+                // Fallback: if server grading fails and the page REALLY carries its answers, grade
+                // locally. A server-graded quiz carries none: the shuffle sets q.correct = -1, and the
+                // old `!== undefined` test let that through, so a refused grade (a student not signed
+                // in, 401) scored every answer wrong and showed a convincing 0% (MD-100 M10, 2026-11-16).
+                const hasLocalKey = this.config.questions.length > 0 &&
+                    this.config.questions.every(q => typeof q.correct === 'number' && q.correct >= 0);
+                if (hasLocalKey) {
                     console.warn('[QuizEngine/SEC-5] Falling back to local grading.');
                     this.state.score = 0;
                     this.state.answers.forEach(a => {
@@ -593,19 +598,62 @@ class QuizEngine {
                     }
                     this.renderResults(results, timedOut);
                 } else {
-                    // No local fallback possible — show error
-                    this.container.innerHTML = `
-                        <div class="quiz-engine theme-${this.config.theme}" role="alert">
-                            <div style="text-align: center; padding: 60px 20px;">
-                                <h2 style="color: #f87171; margin-bottom: 16px;">Grading Error</h2>
-                                <p style="color: #aaa; margin-bottom: 20px;">Could not reach the grading server. Please check your connection and try again.</p>
-                                <p style="font-size: 12px; color: #8a8a8a;">${err.message || 'Unknown error'}</p>
-                                <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; cursor: pointer;">Retry</button>
-                            </div>
-                        </div>
-                    `;
+                    // No local key: say what went wrong and keep the answers for a resubmit
+                    this._renderGradingError(err, timedOut);
                 }
             });
+    }
+
+    /**
+     * Shown when the server could not grade a server-graded quiz. The student's answers stay in
+     * this.state, so "Submit again" resubmits them without retaking the quiz. A refusal because
+     * the student is not signed in (the 401 behind the MD-100 M10 "0%" reports) says so and offers
+     * sign-in. Built with DOM nodes: the error text is never parsed as HTML.
+     */
+    _renderGradingError(err, timedOut) {
+        const code = String((err && err.code) || '');
+        const msg = String((err && err.message) || '');
+        const signedOut = /unauthenticated/.test(code) || /must be signed in/i.test(msg);
+        const box = document.createElement('div');
+        box.className = 'quiz-engine theme-' + this.config.theme;
+        box.setAttribute('role', 'alert');
+        const inner = document.createElement('div');
+        inner.style.cssText = 'text-align: center; padding: 60px 20px;';
+        const h = document.createElement('h2');
+        h.style.cssText = 'color: #f87171; margin-bottom: 16px;';
+        h.textContent = signedOut ? 'Sign in to submit this quiz' : 'Your quiz was not graded';
+        const p = document.createElement('p');
+        p.style.cssText = 'color: #aaa; margin-bottom: 20px;';
+        p.textContent = signedOut
+            ? 'Quizzes are graded on the server, which needs you to be signed in. Your answers are kept: sign in, then submit again.'
+            : 'The grading server could not be reached. Your answers are kept: check your connection, then submit again.';
+        inner.appendChild(h);
+        inner.appendChild(p);
+        const btn = (label, onClick) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = label;
+            b.style.cssText = 'margin: 8px; padding: 10px 20px; cursor: pointer;';
+            b.addEventListener('click', onClick);
+            inner.appendChild(b);
+            return b;
+        };
+        if (signedOut && typeof FirebaseAuth !== 'undefined' && FirebaseAuth.signInWithGoogle) {
+            btn('Sign in with Google', async () => {
+                try { await FirebaseAuth.signInWithGoogle(); } catch (e) { return; }
+                this._submitQuizToServer(timedOut);
+            });
+        }
+        btn('Submit again', () => this._submitQuizToServer(timedOut));
+        if (msg) {
+            const d = document.createElement('p');
+            d.style.cssText = 'font-size: 12px; color: #8a8a8a; margin-top: 16px;';
+            d.textContent = msg;
+            inner.appendChild(d);
+        }
+        box.appendChild(inner);
+        this.container.textContent = '';
+        this.container.appendChild(box);
     }
 
     /**
