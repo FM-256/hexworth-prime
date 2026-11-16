@@ -60,7 +60,12 @@
         mitnick: ['Mitnick Attack', 'Networking/Mitnick_Attack/']
     };
 
-    /* Per hub: which labs, and what the CLARK browse link is for. */
+    /* Per hub: which labs, and what the CLARK browse link is for.
+       Some ids are SHARED BY DESIGN, so an edit changes every page listed:
+         network-plus: web/network-plus, comptia-network     cysa: eye/cysa, cysa-plus
+         ccna: ccna, web/ccna                                 linux: script/linux, comptia-linux, matrix/adv-linux
+         cortex: ai/cortex, code/cortex                       devops: code/devops, devops-fundamentals
+       The live link check (test --live) is run by hand: see taskboard for scheduling it. */
     var HUBS = {
         'network-plus': { labs: ['sniffing', 'arp', 'tcp', 'dnsLocal', 'firewall', 'vpn'], browse: 'network security' },
         'cysa': { labs: ['sniffing', 'fwEvasion', 'tcp', 'dnsRebind', 'icmp'], browse: 'network security and defense' },
@@ -93,19 +98,16 @@
         'ethics-it': { labs: [], browse: 'ethics and privacy' },
         'intro-networks': { labs: [], browse: 'network security' },
         'net-essentials': { labs: [], browse: 'network security' },
-        'intro-computers': { labs: [], browse: 'intro to cyber' },
         'aplus-core2': { labs: [], browse: 'principles of security' },
-        'md-100': { labs: [], browse: 'operating system security (Windows)' },
-        'md-101': { labs: [], browse: 'operating system security (Windows)' },
+        'md-100': { labs: [], browse: 'Windows security' },
+        'md-101': { labs: [], browse: 'Windows security' },
         'server-management': { labs: [], browse: 'operating system security' },
         'cloud-essentials': { labs: [], browse: 'cloud security' },
         'cse': { labs: [], browse: 'cloud security' },
-        'cortex': { labs: [], browse: 'AI/machine learning security' },
+        'cortex': { labs: [], browse: 'machine learning security' },
         'ai-900': { labs: [], browse: 'AI governance and ethics' },
-        'agents': { labs: [], browse: 'AI/machine learning security' },
-        'algorithms': { labs: [], browse: 'programming' },
-        'devops': { labs: [], browse: 'secure software and supply chain' },
-        'piverse': { labs: [], browse: 'IoT security' }
+        'agents': { labs: [], browse: 'machine learning security' },
+        'devops': { labs: [], browse: 'secure software and supply chain' }
     };
 
     /* The link table, exposed before any early return (the test reads it). */

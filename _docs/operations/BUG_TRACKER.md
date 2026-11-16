@@ -14,6 +14,10 @@
 
 **Entry schema** (copy this):
 ```
+### BUG-307 — Cyber Law & Policy Framework hub scrolls sideways on phones  ·  [P3]  ·  open
+- **Found:** 2026-11-16 while extending the Free extra practice card. At 390px `shield/cyber-framework/index.html` is 425px wide with or without the card: a `.module-card` is 425px wide. Pre-existing; the card adds nothing (baseline-vs-card check in `_tools/external-resources/external-resources.test.js`).
+- **Fix:** not started. Let the module grid shrink below 390px (min-width / grid-template-columns on that page).
+
 ### BUG-306 — a refused or failed quiz grade showed the student 0%  ·  [P1]  ·  fixed, deployed 2026-11-16 (ad98d324e, 58d7a4b97, 51be16400), verified live on M10
 - **Found:** 2026-11-16, operator: "md-100 chapter 10 quiz is giving 0% upon completion". Key `quiz_keys/md100-m10` verified correct (15/15 positions checked against the option text; the live page sends a perfect payload). Cloud Run logs: `gradeQuiz` returned 401 (not signed in) 11 times 15:49-16:11Z from one client; none in the prior 10 days. `QuizEngine`'s catch fell back to local grading because `questions[0].correct !== undefined`, but on a server-graded quiz the shuffle sets `correct = -1`, so every answer scored wrong: "Keep Training! 0% 0/15". Affects every QuizEngine quiz (400+ pages) whenever grading fails: signed out, session lapsed, offline.
 - **Fix:** local fallback only when every question carries its answer; otherwise `_renderGradingError` says why (sign in / not graded), keeps the answers, offers Sign in with Google and Submit again. Test: `_tools/quiz-engine/server-grade-failure.test.js` (old engine shows the 0%).
