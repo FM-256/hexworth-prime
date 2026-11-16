@@ -41,11 +41,12 @@ const HUBS = {};
         /* the SEED credit appears only when SEED Labs are listed */
         const seedCreditOk = /SEED Labs are by/.test(el.textContent) === links.some((l) => /seedsecuritylabs\.org/.test(l.href));
         const pf = document.querySelector('.page-footer'); const beforeFooter = !pf || !!(el.compareDocumentPosition(pf) & Node.DOCUMENT_POSITION_FOLLOWING);
-        return { count: c.length, w: Math.round(b.width), h: Math.round(b.height), hidden, links, tw, beforeFooter, seedCreditOk, sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }; });
+        /* the CARD must fit the window; a page that already scrolls sideways without it is not the card's doing */
+        return { count: c.length, w: Math.round(b.width), h: Math.round(b.height), hidden, links, tw, beforeFooter, seedCreditOk, sw: Math.round(b.right), cw: document.documentElement.clientWidth }; });
       const okLinks = r.links && r.links.every((l) => VERIFIED.has(l.href) && l.blank);
       const ok = r.count === 1 && !r.hidden && r.h > 50 && r.links.length === want && okLinks && errs.length === 0 && r.sw <= r.cw + 1 && !r.tw && r.beforeFooter && r.seedCreditOk;
       if (!ok) bad++;
-      if (tag === 'desk' || !ok) console.log((ok ? 'ok  ' : 'FAIL') + ' ' + hub.padEnd(32) + tag.padEnd(6) + ' cards=' + r.count + ' links=' + (r.links || []).length + '/' + want + ' allVerifiedNewTab=' + okLinks + ' size=' + r.w + 'x' + r.h + ' hidden=' + r.hidden + ' hscroll=' + (r.sw > r.cw + 1) + ' tripwire=' + r.tw + ' beforeFooter=' + r.beforeFooter + (errs.length ? ' ERR ' + errs.join('|') : ''));
+      if (tag === 'desk' || !ok) console.log((ok ? 'ok  ' : 'FAIL') + ' ' + hub.padEnd(32) + tag.padEnd(6) + ' cards=' + r.count + ' links=' + (r.links || []).length + '/' + want + ' allVerifiedNewTab=' + okLinks + ' size=' + r.w + 'x' + r.h + ' hidden=' + r.hidden + ' cardOverflow=' + (r.sw > r.cw + 1) + ' tripwire=' + r.tw + ' beforeFooter=' + r.beforeFooter + (errs.length ? ' ERR ' + errs.join('|') : ''));
       await p.close();
     }
   }
