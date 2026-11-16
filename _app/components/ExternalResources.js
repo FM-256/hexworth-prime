@@ -6,7 +6,8 @@
  * The card is placed before the page footer if there is one, else at the end of <main>, else at
  * the end of <body>. Links open in a new tab.
  *
- * Content (operator, 2026-11-16, security pilot of eight hubs): SEED Labs pages taken from the
+ * Content (operator, 2026-11-16, security pilot of eight hubs; trimmed per Nancy so each lab fits its
+ * hub's level): SEED Labs pages taken from the
  * CLARK Cybersecurity Library's own records (api.clark.center learning-object materials) and each
  * checked to return 200 on 2026-11-16, plus a link to browse CLARK. CLARK materials are
  * CC BY-NC-SA 4.0; these are LINKS only, nothing is copied into Hexworth. Individual CLARK item
@@ -38,19 +39,17 @@
         formatString: ['Format-String Vulnerability Lab', 'Software/Format_String/'],
         race: ['Race Condition Vulnerability Lab', 'Software/Race_Condition/'],
         shellcode: ['Shellcode Development Lab', 'Software/Shellcode/'],
-        envSetuid: ['Environment Variable and Set-UID Lab', 'Software/Environment_Variable_and_SetUID/'],
-        secretKey: ['Crypto: Secret-Key Encryption Lab', 'Crypto/Crypto_Encryption/'],
-        prng: ['Crypto: Pseudo Random Number Generation Lab', 'Crypto/Crypto_Random_Number/']
+        envSetuid: ['Environment Variable and Set-UID Lab', 'Software/Environment_Variable_and_SetUID/']
     };
 
     /* Per hub: which labs, and what the CLARK browse link is for. */
     var HUBS = {
         'network-plus': { labs: ['sniffing', 'arp', 'tcp', 'dnsLocal', 'firewall', 'vpn'], browse: 'network security' },
         'cysa': { labs: ['sniffing', 'fwEvasion', 'tcp', 'dnsRebind', 'icmp'], browse: 'network security and defense' },
-        'forensics': { labs: ['sniffing'], browse: 'digital forensics and incident response' },
+        'forensics': { labs: [], browse: 'digital forensics and incident response' },
         'feh': { labs: ['sqli', 'csrf', 'bofSetuid', 'formatString', 'race', 'shellcode'], browse: 'software and web security' },
-        'linux-essentials': { labs: ['envSetuid', 'race', 'firewall'], browse: 'operating system security' },
-        'python-for-it': { labs: ['sniffing', 'secretKey', 'prng'], browse: 'programming and secure coding' },
+        'linux-essentials': { labs: ['envSetuid', 'firewall'], browse: 'operating system security' },
+        'python-for-it': { labs: ['sniffing'], browse: 'programming and secure coding' },
         'cybersecurity-ethics': { labs: [], browse: 'ethics and privacy' },
         'cybersecurity-policy': { labs: [], browse: 'cyber law, policy and risk management' }
     };
@@ -81,7 +80,7 @@
         box.setAttribute('aria-labelledby', 'hx-er-title');
         var h = document.createElement('h2');
         h.id = 'hx-er-title';
-        h.textContent = 'Free extra practice';
+        h.textContent = cfg.labs.length ? 'Free extra practice' : 'Free extra resources';
         var sub = document.createElement('p');
         sub.className = 'hx-er-sub';
         sub.textContent = 'External, free materials. They open in a new tab and are not graded by Hexworth.';
@@ -96,13 +95,22 @@
             ul.appendChild(li);
         });
         var li = document.createElement('li');
-        li.appendChild(link('Browse the CLARK Cybersecurity Library (' + cfg.browse + ')', CLARK_BROWSE));
+        li.appendChild(link('Browse the CLARK Cybersecurity Library', CLARK_BROWSE));
+        /* the browse page is the library's general search, not a topic page: say what to search for */
+        var hint = document.createElement('span');
+        hint.className = 'hx-er-hint';
+        hint.textContent = ' (search for: ' + cfg.browse + ')';
+        li.appendChild(hint);
         ul.appendChild(li);
         box.appendChild(ul);
         var note = document.createElement('p');
         note.className = 'hx-er-note';
-        note.textContent = 'SEED Labs and the CLARK Cybersecurity Library (Towson University) are free, openly licensed resources ' +
-            '(CLARK: CC BY-NC-SA 4.0). A free CLARK account is needed to download its files.';
+        /* Sourced 2026-11-16: SEED pages show "Copyright (c) Wenliang Du" (no license named), so no
+           license is claimed for SEED; CLARK's own pages name CC BY-NC-SA 4.0; CLARK's download
+           endpoint refuses requests that are not signed in. */
+        note.textContent = (cfg.labs.length ? 'SEED Labs are by Wenliang Du and free to use online. ' : '') +
+            'The CLARK Cybersecurity Library (Towson University) lists its materials under CC BY-NC-SA 4.0; ' +
+            'downloading its files requires signing in to CLARK.';
         box.appendChild(note);
         return box;
     }
@@ -119,13 +127,17 @@
             '#hx-external-resources ul{margin:0;padding-left:20px}' +
             '#hx-external-resources li{margin:6px 0}' +
             '#hx-external-resources a{color:inherit;text-decoration:underline;overflow-wrap:anywhere}' +
+            '#hx-external-resources .hx-er-hint{font-size:.85rem;opacity:.8}' +
             '@media (max-width:600px){#hx-external-resources{margin:24px 16px;padding:16px}}';
         document.head.appendChild(s);
     }
 
     /* Before the footer, else at the end of <main>, else at the end of <body>. */
     function place(el) {
-        var footer = document.querySelector('body > footer, body footer');
+        /* a <footer>, or the footer-classed block some hubs use instead (Network+ has div.page-footer);
+           never one inside a dialog or template */
+        var footer = [].slice.call(document.querySelectorAll('footer, .page-footer, .site-footer, .course-footer'))
+            .filter(function (f) { return !f.closest('dialog, template, [role=dialog], [aria-modal=true]'); })[0];
         if (footer && footer.parentNode) { footer.parentNode.insertBefore(el, footer); return; }
         var main = document.querySelector('main');
         if (main) { main.appendChild(el); return; }
